@@ -1,0 +1,143 @@
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using EngagementLetter.Models
+@model Question
+
+
+<form id="questionForm">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="QuestionnaireId" />
+    <div class="modal-body">
+                <div class="form-group">
+                    <label asp-for="Content"></label>
+                    <input asp-for="Content" class="form-control" required />
+                    <span asp-validation-for="Content" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="Type">问题类型</label>
+                    <select asp-for="Type" class="form-control" onchange="toggleOptions(this.value)">
+                        <option value="Radio">单选题</option>
+                        <option value="CheckBox">多选题</option>
+                        <option value="Text">文本框</option>
+                    </select>
+                </div>
+                <div id="optionsContainer" class="mt-3">
+                    <div class="form-group">
+                        <label>选项 1</label>
+                        <input type="text" name="Options[0].Content" class="form-control option-input" />
+                    </div>
+                    <div class="form-group">
+                        <label>选项 2</label>
+                        <input type="text" name="Options[1].Content" class="form-control option-input" />
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addOption()">+ 添加选项</button>
+                </div>
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="submit" class="btn btn-primary" id="submitButton">保存</button>
+            </div>
+        </form>
+
+@{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+<script>
+    // 接收父窗口传递的问题数据
+    window.initQuestionEditor = function(questionData) {
+        // 设置模态框标题和按钮文本
+        document.querySelector('.modal-title').textContent = questionData ? '编辑问题' : '添加问题';
+        document.getElementById('submitButton').textContent = questionData ? '更新' : '保存';
+        
+        // 初始化表单数据
+        if (questionData) {
+            initEditQuestion(questionData);
+        } else {
+            document.getElementById('questionForm').reset();
+            initEditQuestion({Type: 'Radio'});
+        }
+    }
+    // 初始化编辑问题数据
+function initEditQuestion(questionData) {
+    document.getElementById('Id').value = questionData.Id || '';
+    document.getElementById('Content').value = questionData.Content || '';
+    document.getElementById('Type').value = questionData.Type || 'Radio';
+    toggleOptions(questionData.Type);
+
+    // 清空现有选项
+    const container = document.getElementById('optionsContainer');
+    const addButton = container.lastElementChild;
+    while (container.children.length > 1) {
+        container.removeChild(container.firstChild);
+    }
+
+    // 如果是选择题且有选项，添加选项输入框
+    if (questionData.Type !== 'Text' && questionData.OptionsJson) {
+        const options = JSON.parse(questionData.OptionsJson);
+        options.forEach((option, index) => {
+            const div = document.createElement('div');
+            div.className = 'form-group';
+            div.innerHTML = `<label>选项 ${index + 1}</label><input type="text" name="Options[${index}].Content" class="form-control option-input" value="${option}" />`;
+            container.insertBefore(div, addButton);
+        });
+    }
+}
+
+// 切换选项输入区域显示
+function toggleOptions(type) {
+        const container = document.getElementById('optionsContainer');
+        container.style.display = type === 'Text' ? 'none' : 'block';
+    }
+
+    // 添加新选项输入框
+    function addOption() {
+        const container = document.getElementById('optionsContainer');
+        const count = container.querySelectorAll('.option-input').length;
+        const div = document.createElement('div');
+        div.className = 'form-group';
+        div.innerHTML = `<label>选项 ${count + 1}</label><input type="text" name="Options[${count}].Content" class="form-control option-input" />`;
+        container.insertBefore(div, container.lastElementChild);
+    }
+
+    // 初始加载时检查问题类型
+document.addEventListener('DOMContentLoaded', function() {
+    // 从URL参数获取问题数据
+    const urlParams = new URLSearchParams(window.location.search);
+    const questionDataJson = urlParams.get('questionData');
+    if (questionDataJson) {
+        const questionData = JSON.parse(decodeURIComponent(questionDataJson));
+        window.initQuestionEditor(questionData);
+    } else {
+        toggleOptions(document.querySelector('select[name="Type"]').value);
+    }
+    });
+
+    // 添加表单提交处理
+document.getElementById('questionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = this;
+    const questionData = {
+        Content: form.querySelector('input[name="Content"]').value,
+        Type: form.querySelector('select[name="Type"]').value
+    };
+
+    // 收集选项数据并序列化为JArray字符串
+    const optionInputs = form.querySelectorAll('input[name^="Options["]');
+    const options = [];
+    optionInputs.forEach(input => {
+        if (input.value.trim()) {
+            options.push(input.value.trim());
+        }
+    });
+    questionData.OptionsJson = JSON.stringify(options);
+
+    // 判断是添加还是更新问题
+const questionId = document.getElementById('Id').value;
+if (questionId) {
+    window.parent.updateQuestionInQuestionnaire(questionData);
+} else {
+    window.parent.addQuestionToQuestionnaire(questionData);
+}
+
+    // 关闭模态框
+    const modal = bootstrap.Modal.getInstance(document.getElementById('questionModal'));
+    modal.hide();
+});
+</script>

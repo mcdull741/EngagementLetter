@@ -1,0 +1,85 @@
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Engagement Letter管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <style>
+        .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+        .nav-item.active { border-bottom: 3px solid #3b82f6; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <!-- 网站头部 -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+            <!-- Logo和标题 -->
+            <div class="flex items-center space-x-4">
+                <i class="fa fa-file-text-o text-2xl text-blue-600"></i>
+                <h1 class="text-xl font-bold text-gray-800">Engagement Letter管理系统</h1>
+            </div>
+
+            <!-- 导航菜单 - 桌面版 -->
+            <nav class="hidden md:flex items-center space-x-6">
+                <a href="#" class="nav-item active px-3 py-2 text-sm font-medium text-blue-600">首页</a>
+                <a href="#" class="nav-item px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">问卷管理</a>
+                <a href="#" class="nav-item px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Engagement Letter管理</a>
+            </nav>
+
+            <!-- 移动端菜单按钮 -->
+            <button class="md:hidden text-gray-600 focus:outline-none">
+                <i class="fa fa-bars text-xl"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="flex-grow container mx-auto px-4 py-8">
+        <!-- 快速功能入口区 -->
+        <section class="py-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- 问卷管理卡片 -->
+                <div class="card-hover bg-white rounded-lg shadow p-6 border border-gray-100">
+                    <div class="text-4xl text-blue-500 mb-4"><i class="fa fa-list-alt"></i></div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-2">问卷管理</h2>
+                    <p class="text-gray-600 mb-6">创建、编辑和管理问卷模板</p>
+                    <a href="/Questionnaires" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                        进入管理
+                    </a>
+                </div>
+
+                <!-- 模板管理卡片 -->
+                <div class="card-hover bg-white rounded-lg shadow p-6 border border-gray-100">
+                    <div class="text-4xl text-green-500 mb-4"><i class="fa fa-file-text"></i></div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-2">模板管理</h2>
+                    <p class="text-gray-600 mb-6">管理Engagement Letter模板</p>
+                    <a href="#" class="inline-block bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                        进入管理
+                    </a>
+                </div>
+
+                <!-- 文档导出卡片 -->
+                <div class="card-hover bg-white rounded-lg shadow p-6 border border-gray-100">
+                    <div class="text-4xl text-purple-500 mb-4"><i class="fa fa-download"></i></div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-2">文档导出</h2>
+                    <p class="text-gray-600 mb-6">导出Engagement Letter为Word格式</p>
+                    <a href="#" class="inline-block bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
+                        导出历史
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-gray-800 text-white py-6">
+        <div class="container mx-auto px-4 text-center text-gray-400 text-sm">
+            <p>© 2023 Engagement Letter管理系统 - 版权所有</p>
+        </div>
+    </footer>
+</body>
+</html>

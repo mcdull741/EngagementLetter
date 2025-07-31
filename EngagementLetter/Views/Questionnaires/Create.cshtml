@@ -1,0 +1,232 @@
+@model EngagementLetter.Models.Questionnaire
+@{
+    ViewData["Title"] = "创建新问卷";
+}
+
+<div class="container mt-4">
+    <!-- 页面标题区 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>创建新问卷</h1>
+        <a asp-action="Index" class="btn btn-outline-secondary">← 返回列表</a>
+    </div>
+
+    <!-- 问卷表单 -->
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <form asp-action="Create" class="needs-validation" novalidate>
+                <input type="hidden" asp-for="Id" />
+                <!-- 问卷属性区域 -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">问卷基本信息</h5>
+                        <hr />
+
+                        <!-- 标题输入 -->
+                        <div class="form-group mb-3">
+                            <label asp-for="Title" class="form-label required">问卷标题</label>
+                            <input asp-for="Title" class="form-control" required />
+                            <span asp-validation-for="Title" class="text-danger"></span>
+                            <div class="invalid-feedback">请输入问卷标题</div>
+                        </div>
+
+                        <!-- 描述输入 -->
+                        <div class="form-group mb-3">
+                            <label asp-for="Description" class="form-label">问卷描述</label>
+                            <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <!-- 启用状态 -->
+                        <div class="form-check mb-3">
+                            <input asp-for="IsActive" class="form-check-input" checked />
+                            <label asp-for="IsActive" class="form-check-label">启用问卷</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 问题列表区域 -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">问卷问题</h5>
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#questionModal">
+                            <i class="bi bi-plus-circle"></i> 添加问题
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="questionsList">
+                            <input type="hidden" id="questionsJson" name="QuestionsJson" value="[]" />
+                            <script>
+                                let questions = [];
+
+                                // 添加问题到问卷
+                                window.addQuestionToQuestionnaire = function (questionData) {
+                                    questions.push({
+                                        Content: questionData.Content,
+                                        Type: questionData.Type,
+                                        OptionsJson: questionData.OptionsJson
+                                    });
+
+                                    // 更新隐藏字段值
+                                    document.getElementById('questionsJson').value = JSON.stringify(questions);
+
+                                    // 更新问题列表UI
+                                    renderQuestionsList();
+                                }
+
+                                // 渲染问题列表
+                                function renderQuestionsList() {
+                                    const container = document.getElementById('questionsContainer');
+                                    const noQuestionsMessage = document.getElementById('noQuestionsMessage');
+
+                                    if (questions.length === 0) {
+                                        noQuestionsMessage.style.display = 'block';
+                                        container.innerHTML = '';
+                                        return;
+                                    }
+
+                                    noQuestionsMessage.style.display = 'none';
+
+                                    let html = '';
+                                    questions.forEach((q, index) => {
+                                        html += `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="card-title mb-0">问题 ${index + 1}: ${q.Content}</h6>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="moveQuestionUp(${index})" ${index === 0 ? 'disabled' : ''}>
+                                    <i class="bi bi-arrow-up"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="moveQuestionDown(${index})" ${index === questions.length - 1 ? 'disabled' : ''}>
+                                    <i class="bi bi-arrow-down"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="removeQuestion(${index})">&times;</button>
+                            </div>
+                        </div>
+                        <p class="card-text text-muted small">类型: ${q.Type === 'Radio' ? '单选题' : q.Type === 'CheckBox' ? '多选题' : '文本框'}</p>
+                        ${q.OptionsJson ? `<p class="card-text small"><strong>选项:</strong> ${JSON.parse(q.OptionsJson).join(', ')}</p>` : ''}
+                    </div>
+                </div>
+                `;
+                                    });
+
+                                    container.innerHTML = html;
+                                }
+
+                                // 移除问题
+                                function removeQuestion(index) {
+                                    questions.splice(index, 1);
+                                    document.getElementById('questionsJson').value = JSON.stringify(questions);
+                                    renderQuestionsList();
+                                }
+
+                                // 向上移动问题
+                                function moveQuestionUp(index) {
+                                    if (index > 0) {
+                                        // 交换位置
+                                        [questions[index], questions[index - 1]] = [questions[index - 1], questions[index]];
+                                        // 更新JSON和UI
+                                        document.getElementById('questionsJson').value = JSON.stringify(questions);
+                                        renderQuestionsList();
+                                    }
+                                }
+
+                                // 向下移动问题
+                                function moveQuestionDown(index) {
+                                    if (index < questions.length - 1) {
+                                        // 交换位置
+                                        [questions[index], questions[index + 1]] = [questions[index + 1], questions[index]];
+                                        // 更新JSON和UI
+                                        document.getElementById('questionsJson').value = JSON.stringify(questions);
+                                        renderQuestionsList();
+                                    }
+                                }
+                            </script>
+                            <!-- 初始状态：无问题 -->
+                            <div class="text-center text-muted py-5" id="noQuestionsMessage">
+                                <i class="bi bi-question-circle display-4 mb-3"></i>
+                                <p>暂无问题，请点击上方"添加问题"按钮开始添加</p>
+                            </div>
+                            <!-- 问题列表容器 -->
+                            <div id="questionsContainer"></div>
+
+                            <!-- 问题列表将通过JavaScript动态添加 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮区 -->
+                <div class="d-flex justify-content-end gap-3 mt-5">
+                    <a asp-action="Index" class="btn btn-outline-secondary px-4">取消</a>
+                    <button type="submit" class="btn btn-primary px-4">保存问卷</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 问题添加模态框 -->
+<div class="modal fade" id="questionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加问题</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- 将通过AJAX加载Question/Create视图 -->
+                <div id="questionFormContainer"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        $(document).ready(function () {
+            // 加载问题创建表单到模态框
+            $('#questionModal').on('show.bs.modal', function () {
+                // 清空容器并移除之前的事件监听器
+                const container = $('#questionFormContainer');
+                container.empty().off();
+
+                // 加载创建表单
+                container.load('@Url.Action("Create", "Questions")?questionnaireId=' + $('#Id').val(), function () {
+                    // 为加载的表单添加提交事件处理
+                    container.find('form').on('submit', function (e) {
+                        e.preventDefault();
+                        const form = this;
+                        const questionData = {
+                            Content: form.querySelector('input[name="Content"]').value,
+                            Type: form.querySelector('select[name="Type"]').value
+                        };
+
+                        // 收集选项数据
+                        const optionInputs = form.querySelectorAll('input[name^="Options["]');
+                        const options = [];
+                        optionInputs.forEach(input => {
+                            if (input.value.trim()) {
+                                options.push(input.value.trim());
+                            }
+                        });
+                        questionData.OptionsJson = JSON.stringify(options);
+
+                        // 添加问题到问卷
+                        window.addQuestionToQuestionnaire(questionData);
+
+                        // 关闭模态框
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('questionModal'));
+                        modal.hide();
+                    });
+                });
+            });
+
+            // 确保Bootstrap模态框可用
+            window.bootstrap = window.bootstrap || {};
+        });
+    </script>
+}

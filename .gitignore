@@ -1,0 +1,58 @@
+# 编译输出
+bin/
+obj/
+
+# 数据库文件
+*.db
+
+# 环境配置
+appsettings.Development.json
+appsettings.Production.json
+
+# 用户特定文件
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio缓存文件
+.vs/
+[Dd]ebug/
+[Rr]elease/
+[Bb]uild/
+[Oo]bj/
+[Ll]og/
+
+# 迁移文件(可选，根据团队习惯)
+# Migrations/
+
+# wwwroot中的第三方库
+wwwroot/lib/
+
+# Node.js相关(如果有)
+node_modules/
+npm-debug.log
+package-lock.json
+
+# TypeScript相关(如果有)
+*.tsbuildinfo
+
+# 其他临时文件
+*.tmp
+*.temp
+*.bak
+*.cache
+*.old
+
+# IDE配置
+.vscode/
+.idea/
+*.idea
+*.code-workspace
+
+# 发布文件夹
+publish/
+
+# 测试结果
+TestResults/
+coverage/

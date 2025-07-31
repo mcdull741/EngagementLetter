@@ -1,0 +1,67 @@
+@model IEnumerable<Questionnaire>
+@{ Layout = "~/Views/Shared/_Layout.cshtml"; ViewData["Title"] = "问卷管理"; }
+
+<div>
+    <div>
+        <h1>问卷管理</h1>
+        <button onclick="window.location.href='/Questionnaires/Create'">
+            新增问卷
+        </button>
+        <button onclick="window.location.reload()">
+            刷新
+        </button>
+    </div>
+
+    <div>
+        <div>
+            <div>
+                <input type="text" placeholder="搜索问卷标题...">
+                <button>
+                    搜索
+                </button>
+            </div>
+        </div>
+
+        <table border="1">
+            <thead>
+                <tr>
+                    <th style="border: 1px solid #000;">问卷标题</th>
+                    <th style="border: 1px solid #000;">描述</th>
+                    <th style="border: 1px solid #000;">创建日期</th>
+                    <th style="border: 1px solid #000;">修改时间</th>
+                    <th style="border: 1px solid #000;">状态</th>
+                    <th style="border: 1px solid #000;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td style="border: 1px solid #000;">
+                            <div>@item.Title</div>
+                        </td>
+                        <td style="border: 1px solid #000;">
+                            <div>@item.Description</div>
+                        </td>
+                        <td style="border: 1px solid #000;">
+                            <div>@item.CreatedDate.ToString("yyyy-MM-dd")</div>
+                        </td>
+                        <td style="border: 1px solid #000;">
+                            <div>@item.LastModifiedDate.ToString("yyyy-MM-dd")</div>
+                        </td>
+                        <td style="border: 1px solid #000;">
+                            <span>
+                                @(item.IsActive ? "已发布" : "草稿")
+                            </span>
+                        </td>
+                        <td style="border: 1px solid #000;">
+                            <a href="/Questionnaires/Edit/@item.Id">编辑</a>
+                            <a href="/Questionnaires/Preview/@item.Id">预览</a>
+                            <a href="/Questionnaires/Delete/@item.Id">删除</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
