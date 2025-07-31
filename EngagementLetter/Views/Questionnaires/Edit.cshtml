@@ -63,13 +63,11 @@
                 <div class="card mb-4 shadow-sm">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">问卷问题</h5>
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                            data-bs-target="#questionModal">
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#questionModal">
                             <i class="bi bi-plus-circle"></i> 添加问题
                         </button>
                     </div>
                     <div class="card-body">
-                        <!-- 已移除重复的隐藏字段 -->
                         <!-- 初始状态：无问题 -->
                         <div class="text-center text-muted py-5" id="noQuestionsMessage">
                             <i class="bi bi-question-circle display-4 mb-3"></i>
@@ -89,115 +87,48 @@
     </div>
 </div>
 
-<!-- 问题添加模态框 -->
+<!-- 问题添加/编辑模态框 -->
 <div class="modal fade" id="questionModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">添加问题</h5>
+                <h5 class="modal-title" id="modalTitle">添加问题</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- 将通过AJAX加载Question/Create视图 -->
                 <div id="questionFormContainer"></div>
             </div>
         </div>
     </div>
 </div>
 
-
-
 @section Scripts {
     <script>
         let questions = [];
+        let currentEditIndex = -1;
 
         $(document).ready(function () {
             // 初始化问题数据
-            console.log('开始初始化问题数据');
-            @if (Model != null)
+            @if (Model?.Questions?.Any() == true)
             {
-                <text>console.log('Model不为空');</text>
-                @if (Model.Questions != null)
+                @foreach (var question in Model.Questions.OrderBy(q => q.SortOrder))
                 {
-                    <text>console.log('Model.Questions不为空，问题数量: @Model.Questions.Count()');</text>
-                    @if (Model.Questions.Any())
-                    {
-                        @foreach (var question in Model.Questions.OrderBy(q => q.SortOrder))
-                        {
-                            <text>
-                                questions.push({
-                                        Id: '@question.Id',
-                                        Content: '@Html.Raw(question.Content.Replace("'", "\'"))',
-                                        Type: '@question.Type',
-                                        OptionsJson: '@Html.Raw(question.OptionsJson?.Replace("'", "\'"))',
-                                        SortOrder: @question.SortOrder
-                                });
-                                console.log('已添加问题: @question.Content');
-                            </text>
-                        }
-                    }
-                    else
-                    {
-                        <text>console.log('Model.Questions为空集合');</text>
-                    }
-                }
-                else
-                {
-                    <text>console.log('Model.Questions为空');</text>
+                    <text>
+                        questions.push({
+                            Id: '@question.Id',
+                            Content: '@Html.Raw(question.Content.Replace("'", "\'"))',
+                            Type: '@question.Type',
+                            OptionsJson: '@Html.Raw(question.OptionsJson?.Replace("'", "\'"))',
+                            SortOrder: @question.SortOrder
+                        });
+                    </text>
                 }
             }
-            else
-            {
-                <text>console.log('Model为空');</text>
-            }
-            console.log('问题数据初始化完成，问题数量: ' + questions.length);
 
             // 更新隐藏字段
             updateQuestionsJson();
-
-            // 移除延迟，直接渲染问题列表
+            // 渲染问题列表
             renderQuestionsList();
-            console.log('已渲染问题列表，问题数量: ' + questions.length);
-        });
-        // 标记是否为编辑模式
-        let isEditing = false;
-
-        // 加载问题创建表单到模态框
-        $('#questionModal').on('show.bs.modal', function () {
-            // 清除之前的表单内容和事件监听器
-            $('#questionFormContainer').empty();
-
-            // 只有在添加问题模式下才加载创建表单
-            if (!isEditing) {
-                // 加载创建表单
-                $('#questionFormContainer').load('@Url.Action("Create", "Questions")?questionnaireId=' + $('#Id').val(), function () {
-                    // 确保表单提交后正确处理
-                    $('#questionFormContainer form').on('submit', function (e) {
-                            e.preventDefault();
-                            $.ajax({
-                                url: this.action,
-                                type: this.method,
-                                data: $(this).serialize(),
-                                success: function (response) {
-                                    if (response.success) {
-                                        // 调用回调函数添加问题
-                                        window.addQuestionToQuestionnaire(response.question);
-                                        // 关闭模态框
-                                        $('#questionModal').modal('hide');
-                                    } else {
-                                        // 显示错误信息
-                                        alert('添加问题失败: ' + response.message);
-                                    }
-                                },
-                                error: function () {
-                                    alert('添加问题时发生错误');
-                                }
-                            });
-                        });
-                    });
-            }
-            // 重置编辑模式标志
-            isEditing = false;
         });
 
         // 更新隐藏字段
@@ -232,7 +163,7 @@
                             <button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="moveQuestionDown(${index})" ${index === questions.length - 1 ? 'disabled' : ''}>
                                 <i class="bi bi-arrow-down"></i> 下
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editQuestion(${index})">
+                            <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="openEditModal(${index})">
                                 编辑
                             </button>
                             <button type="button" class="btn btn-sm btn-danger" onclick="deleteQuestion(${index})">
@@ -267,33 +198,37 @@
             }
         }
 
-        // 编辑问题
-        function editQuestion(index) {
-            // 设置编辑模式标志
-            isEditing = true;
+        // 打开添加问题模态框
+        function openAddModal() {
+            currentEditIndex = -1;
+            document.getElementById('modalTitle').textContent = '添加问题';
+            renderQuestionForm({ Content: '', Type: 'Text', OptionsJson: '' });
+            new bootstrap.Modal(document.getElementById('questionModal')).show();
+        }
 
-            const question = questions[index];
-            const modal = new bootstrap.Modal(document.getElementById('questionModal'));
-            const modalTitle = document.querySelector('#questionModal .modal-title');
+        // 打开编辑问题模态框
+        function openEditModal(index) {
+            currentEditIndex = index;
+            document.getElementById('modalTitle').textContent = '编辑问题';
+            renderQuestionForm(questions[index]);
+            new bootstrap.Modal(document.getElementById('questionModal')).show();
+        }
 
-            // 更改模态框标题
-            modalTitle.textContent = '编辑问题';
+        // 渲染问题表单
+        function renderQuestionForm(questionData) {
+            const container = document.getElementById('questionFormContainer');
+            container.innerHTML = '';
 
-            // 清空容器
-            const container = $('#questionFormContainer');
-            container.empty();
-
-            // 直接使用本地数据创建编辑表单
             let optionsHtml = '';
-            if (question.OptionsJson) {
-                const options = JSON.parse(question.OptionsJson);
+            if (questionData.OptionsJson) {
+                const options = JSON.parse(questionData.OptionsJson);
                 optionsHtml = options.map((option, i) => `
                     <div class="option-item d-flex gap-2 mb-2">
                         <input type="text" class="form-control option-input" value="${option}" required />
                         <button type="button" class="btn btn-sm btn-danger remove-option">删除</button>
                     </div>
                 `).join('');
-            } else if (question.Type === 'Radio' || question.Type === 'CheckBox') {
+            } else if (questionData.Type === 'Radio' || questionData.Type === 'CheckBox') {
                 optionsHtml = `
                     <div class="option-item d-flex gap-2 mb-2">
                         <input type="text" class="form-control option-input" placeholder="输入选项内容" required />
@@ -304,30 +239,29 @@
 
             const formHtml = `
             <div class="question-form">
-                <h5>编辑问题</h5>
+                <h5>${currentEditIndex === -1 ? '添加问题' : '编辑问题'}</h5>
                 <hr />
-                <form id="localEditForm">
-                    <input type="hidden" id="editIndex" value="${index}" />
+                <form id="questionForm">
                     <div class="form-group mb-3">
                         <label class="form-label required">问题内容</label>
-                        <textarea id="editContent" class="form-control" rows="3" required>${question.Content}</textarea>
+                        <textarea id="content" class="form-control" rows="3" required>${questionData.Content}</textarea>
                     </div>
 
                     <div class="form-group mb-3">
                         <label class="form-label required">问题类型</label>
-                        <select id="editType" class="form-select" required>
-                            <option value="Text" ${question.Type === 'Text' ? 'selected' : ''}>文本框</option>
-                            <option value="Radio" ${question.Type === 'Radio' ? 'selected' : ''}>单选题</option>
-                            <option value="CheckBox" ${question.Type === 'CheckBox' ? 'selected' : ''}>多选题</option>
+                        <select id="type" class="form-select" required>
+                            <option value="Text" ${questionData.Type === 'Text' ? 'selected' : ''}>文本框</option>
+                            <option value="Radio" ${questionData.Type === 'Radio' ? 'selected' : ''}>单选题</option>
+                            <option value="CheckBox" ${questionData.Type === 'CheckBox' ? 'selected' : ''}>多选题</option>
                         </select>
                     </div>
 
-                    <div id="editOptionsContainer" class="mb-3" style="display: ${question.Type === 'Radio' || question.Type === 'CheckBox' ? 'block' : 'none'};">
+                    <div id="optionsContainer" class="mb-3" style="display: ${questionData.Type === 'Radio' || questionData.Type === 'CheckBox' ? 'block' : 'none'};">
                         <label class="form-label required">选项</label>
                         <div class="mb-2">
-                            <button type="button" id="addEditOption" class="btn btn-sm btn-outline-secondary">添加选项</button>
+                            <button type="button" id="addOption" class="btn btn-sm btn-outline-secondary">添加选项</button>
                         </div>
-                        <div id="editOptionsList">${optionsHtml}</div>
+                        <div id="optionsList">${optionsHtml}</div>
                     </div>
 
                     <div class="text-end">
@@ -338,89 +272,107 @@
             </div>
             `;
 
-            container.html(formHtml);
-            
+            container.innerHTML = formHtml;
+
             // 问题类型变更时显示/隐藏选项容器
-            $('#editType').change(function () {
-                const type = $(this).val();
+            document.getElementById('type').addEventListener('change', function() {
+                const type = this.value;
+                const optionsContainer = document.getElementById('optionsContainer');
                 if (type === 'Radio' || type === 'CheckBox') {
-                    $('#editOptionsContainer').show();
+                    optionsContainer.style.display = 'block';
                     // 确保至少有一个选项
-                    if ($('#editOptionsList .option-item').length === 0) {
-                        addEditOption();
+                    if (document.querySelectorAll('#optionsList .option-item').length === 0) {
+                        addOption();
                     }
                 } else {
-                    $('#editOptionsContainer').hide();
+                    optionsContainer.style.display = 'none';
                 }
             });
 
             // 添加选项按钮点击事件
-            $('#addEditOption').click(addEditOption);
+            document.getElementById('addOption').addEventListener('click', addOption);
 
-            // 删除选项按钮委托事件
-            $(document).on('click', '.remove-option', function () {
-                $(this).closest('.option-item').remove();
+            // 删除选项按钮事件委托
+            document.getElementById('optionsList').addEventListener('click', function(e) {
+                if (e.target.classList.contains('remove-option')) {
+                    e.target.closest('.option-item').remove();
+                }
             });
 
             // 表单提交处理
-            $('#localEditForm').submit(function (e) {
+            document.getElementById('questionForm').addEventListener('submit', function(e) {
                 e.preventDefault();
-                
-                const index = parseInt($('#editIndex').val());
-                const content = $('#editContent').val().trim();
-                const type = $('#editType').val();
-                
-                let optionsJson = '';
-                if (type === 'Radio' || type === 'CheckBox') {
-                    const options = [];
-                    $('.option-input').each(function () {
-                        const value = $(this).val().trim();
-                        if (value) {
-                            options.push(value);
-                        }
-                    });
-
-                    if (options.length === 0) {
-                        alert('请至少添加一个选项');
-                        return;
-                    }
-
-                    optionsJson = JSON.stringify(options);
-                }
-
-                // 更新本地问题数据
-                questions[index] = {
-                    ...questions[index],
-                    Content: content,
-                    Type: type,
-                    OptionsJson: optionsJson
-                };
-
-                // 更新隐藏字段和问题列表
-                updateQuestionsJson();
-                renderQuestionsList();
-
-                // 关闭模态框
-                modal.hide();
-                
-                // 恢复模态框标题
-                modalTitle.textContent = '添加问题';
+                saveQuestion();
             });
-
-            // 显示模态框
-            modal.show();
         }
 
-        // 添加编辑选项的辅助函数
-        function addEditOption() {
-            const optionsList = $('#editOptionsList');
-            const newOption = `
-            <div class="option-item d-flex gap-2 mb-2">
+        // 添加选项的辅助函数
+        function addOption() {
+            const optionsList = document.getElementById('optionsList');
+            const newOption = document.createElement('div');
+            newOption.className = 'option-item d-flex gap-2 mb-2';
+            newOption.innerHTML = `
                 <input type="text" class="form-control option-input" placeholder="输入选项内容" required />
                 <button type="button" class="btn btn-sm btn-danger remove-option">删除</button>
-            </div>
             `;
-            optionsList.append(newOption);
+            optionsList.appendChild(newOption);
+        }
+
+        // 保存问题
+        function saveQuestion() {
+            const content = document.getElementById('content').value.trim();
+            const type = document.getElementById('type').value;
+
+            if (!content) {
+                alert('请输入问题内容');
+                return;
+            }
+
+            let optionsJson = '';
+            if (type === 'Radio' || type === 'CheckBox') {
+                const options = [];
+                document.querySelectorAll('.option-input').forEach(input => {
+                    const value = input.value.trim();
+                    if (value) {
+                        options.push(value);
+                    }
+                });
+
+                if (options.length === 0) {
+                    alert('请至少添加一个选项');
+                    return;
+                }
+
+                optionsJson = JSON.stringify(options);
+            }
+
+            const questionData = {
+                Id: currentEditIndex === -1 ? generateUniqueId() : questions[currentEditIndex].Id,
+                Content: content,
+                Type: type,
+                OptionsJson: optionsJson,
+                SortOrder: currentEditIndex === -1 ? questions.length : questions[currentEditIndex].SortOrder
+            };
+
+            if (currentEditIndex === -1) {
+                // 添加新问题
+                questions.push(questionData);
+            } else {
+                // 更新现有问题
+                questions[currentEditIndex] = questionData;
+            }
+
+            // 更新隐藏字段和问题列表
+            updateQuestionsJson();
+            renderQuestionsList();
+
+            // 关闭模态框
+            bootstrap.Modal.getInstance(document.getElementById('questionModal')).hide();
+        }
+
+        // 生成唯一ID
+        function generateUniqueId() {
+            return 'q' + Date.now() + Math.floor(Math.random() * 1000);
         }
 
         // 删除问题
@@ -432,27 +384,7 @@
             }
         }
 
-        // 更新问题回调
-        window.updateQuestionInQuestionnaire = function (questionData) {
-            // 查找并更新对应的问题
-            const index = questions.findIndex(q => q.Id === questionData.Id);
-            if (index !== -1) {
-                questions[index] = {
-                    ...questions[index],
-                    Content: questionData.Content,
-                    Type: questionData.Type,
-                    OptionsJson: questionData.OptionsJson
-                };
-                updateQuestionsJson();
-                renderQuestionsList();
-            }
-        };
-
-        // 添加问题回调
-        window.addQuestionToQuestionnaire = function (questionData) {
-            questions.push(questionData);
-            updateQuestionsJson();
-            renderQuestionsList();
-        }
+        // 绑定添加问题按钮事件
+        document.querySelector('[data-bs-target="#questionModal"]').addEventListener('click', openAddModal);
     </script>
 }

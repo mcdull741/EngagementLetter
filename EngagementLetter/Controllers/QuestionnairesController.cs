@@ -109,21 +109,66 @@ namespace EngagementLetter.Controllers
             {
                 try
                 {
-                    _context.Update(questionnaire);
+                    // 获取数据库中的原始问卷，以保留创建时间
+                    var originalQuestionnaire = await _context.Questionnaires.FindAsync(id);
+                    if (originalQuestionnaire != null)
+                    {
+                        // 只更新需要修改的字段
+                        originalQuestionnaire.Title = questionnaire.Title;
+                        originalQuestionnaire.Description = questionnaire.Description;
+                        originalQuestionnaire.IsActive = questionnaire.IsActive;
+                        originalQuestionnaire.LastModifiedDate = DateTime.Now; // 更新修改时间
 
-                    // 删除现有问题
-                    var existingQuestions = await _context.Questions.Where(q => q.QuestionnaireId == id).ToListAsync();
-                    _context.Questions.RemoveRange(existingQuestions);
+                        _context.Update(originalQuestionnaire);
+                    }
 
-                    // 添加更新后的问题
+                    // 处理问题更新或插入
                     if (!string.IsNullOrEmpty(QuestionsJson))
                     {
                         var questions = JsonConvert.DeserializeObject<List<Question>>(QuestionsJson);
+                        var existingQuestions = await _context.Questions
+                            .Where(q => q.QuestionnaireId == id)
+                            .ToListAsync();
+
                         foreach (var question in questions)
                         {
                             question.QuestionnaireId = questionnaire.Id;
-                            question.Id = Guid.NewGuid().ToString();
-                            _context.Questions.Add(question);
+
+                            if (string.IsNullOrEmpty(question.Id))
+                            {
+                                // 新问题，生成ID并添加
+                                question.Id = Guid.NewGuid().ToString();
+                                _context.Questions.Add(question);
+                            }
+                            else
+                            {
+                                // 现有问题，查找并更新
+                                var existingQuestion = existingQuestions
+                                    .FirstOrDefault(q => q.Id == question.Id);
+                                if (existingQuestion != null)
+                                {
+                                    // 更新问题属性
+                                    existingQuestion.Content = question.Content;
+                                    existingQuestion.Type = question.Type;
+                                    existingQuestion.OptionsJson = question.OptionsJson;
+                                    // 更新其他需要更新的字段
+                                    _context.Questions.Update(existingQuestion);
+                                }
+                                else
+                                {
+                                    // 如果数据库中不存在该ID的问题，则添加为新问题
+                                    _context.Questions.Add(question);
+                                }
+                            }
+                        }
+
+                        // 删除不在提交列表中的问题
+                        foreach (var existingQuestion in existingQuestions)
+                        {
+                            if (!questions.Any(q => q.Id == existingQuestion.Id))
+                            {
+                                _context.Questions.Remove(existingQuestion);
+                            }
                         }
                     }
 
