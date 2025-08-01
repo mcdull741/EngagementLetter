@@ -48,8 +48,7 @@
                 <div class="card mb-4 shadow-sm">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">问卷问题</h5>
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                            data-bs-target="#questionModal">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="openAddModal()">
                             <i class="bi bi-plus-circle"></i> 添加问题
                         </button>
                     </div>
@@ -58,8 +57,219 @@
                             <input type="hidden" id="questionsJson" name="QuestionsJson" value="[]" />
                             <script>
                                 let questions = [];
+                                let currentEditingQuestionIndex = -1;
 
-                                // 添加问题到问卷
+                                // 生成唯一ID
+                                function generateUniqueId() {
+                                    return 'q_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                                }
+
+                                // 打开添加问题模态框
+                                function openAddModal() {
+                                    currentEditingQuestionIndex = -1;
+                                    document.getElementById('questionModalLabel').textContent = '添加问题';
+                                    renderQuestionForm();
+                                    const modal = new bootstrap.Modal(document.getElementById('questionModal'));
+                                    modal.show();
+                                }
+
+                                // 打开编辑问题模态框
+                                function openEditModal(index) {
+                                    currentEditingQuestionIndex = index;
+                                    document.getElementById('questionModalLabel').textContent = '编辑问题';
+                                    renderQuestionForm(questions[index]);
+                                    const modal = new bootstrap.Modal(document.getElementById('questionModal'));
+                                    modal.show();
+                                }
+
+                                // 渲染问题表单
+                                function renderQuestionForm(question = null) {
+                                    const container = document.getElementById('questionFormContainer');
+                                    container.innerHTML = '';
+
+                                    let html = `
+                                    <form id="questionForm">
+                                        <div class="mb-3">
+                                            <label for="questionContent" class="form-label required">问题内容</label>
+                                            <input type="text" id="questionContent" class="form-control" required value="${question ? question.Content : ''}" />
+                                            <div class="invalid-feedback">请输入问题内容</div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="questionType" class="form-label required">问题类型</label>
+                                            <select id="questionType" class="form-select" required onchange="handleQuestionTypeChange()">
+                                                <option value="Text" ${!question || question.Type === 'Text' ? 'selected' : ''}>文本框</option>
+                                                <option value="Radio" ${question && question.Type === 'Radio' ? 'selected' : ''}>单选题</option>
+                                                <option value="CheckBox" ${question && question.Type === 'CheckBox' ? 'selected' : ''}>多选题</option>
+                                            </select>
+                                        </div>
+
+                                        <div id="optionsContainer" class="mb-3 ${!question || question.Type === 'Text' ? 'd-none' : ''}">
+                                            <label class="form-label required">选项</label>
+                                            <div id="optionsList">
+                                                ${question && question.Type !== 'Text' && question.OptionsJson ?
+                                            JSON.parse(question.OptionsJson).map((option, i) => `
+                                                    <div class="input-group mb-2 option-item">
+                                                        <input type="text" class="form-control option-input" value="${option}" />
+                                                        <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">&times;</button>
+                                                    </div>
+                                                    `).join('') :
+                                            `
+                                                    <div class="input-group mb-2 option-item">
+                                                        <input type="text" class="form-control option-input" />
+                                                        <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">&times;</button>
+                                                    </div>
+                                                    <div class="input-group mb-2 option-item">
+                                                        <input type="text" class="form-control option-input" />
+                                                        <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">&times;</button>
+                                                    </div>
+                                                    `
+                                        }
+                                            </div>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addOption()">
+                                                <i class="bi bi-plus"></i> 添加选项
+                                            </button>
+                                        </div>
+
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                            <button type="submit" class="btn btn-primary">保存</button>
+                                        </div>
+                                    </form>
+                                    `;
+
+                                    container.innerHTML = html;
+
+                                    // 添加表单提交事件
+                                    document.getElementById('questionForm').addEventListener('submit', function (e) {
+                                        e.preventDefault();
+                                        // 确保saveQuestion函数已定义
+                                        if (typeof saveQuestion === 'function') {
+                                            saveQuestion();
+                                        } else {
+                                            console.error('saveQuestion函数未定义');
+                                            alert('保存功能加载失败，请刷新页面重试');
+                                        }
+                                    });
+                                }
+
+                                // 处理问题类型变更
+                                function handleQuestionTypeChange() {
+                                    const type = document.getElementById('questionType').value;
+                                    const optionsContainer = document.getElementById('optionsContainer');
+
+                                    if (type === 'Text') {
+                                        optionsContainer.classList.add('d-none');
+                                    } else {
+                                        optionsContainer.classList.remove('d-none');
+                                        // 确保至少有两个选项
+                                        ensureMinimumOptions();
+                                    }
+                                }
+
+                                // 确保至少有两个选项
+                                function ensureMinimumOptions() {
+                                    const optionsList = document.getElementById('optionsList');
+                                    const optionItems = optionsList.querySelectorAll('.option-item');
+
+                                    if (optionItems.length < 2) {
+                                        while (optionItems.length < 2) {
+                                            addOption();
+                                        }
+                                    }
+                                }
+
+                                // 添加选项
+                                function addOption() {
+                                    const optionsList = document.getElementById('optionsList');
+                                    const newOption = document.createElement('div');
+                                    newOption.className = 'input-group mb-2 option-item';
+                                    newOption.innerHTML = `
+                                        <input type="text" class="form-control option-input" />
+                                        <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">&times;</button>
+                                    `;
+                                    optionsList.appendChild(newOption);
+                                }
+
+                                // 移除选项
+                                function removeOption(button) {
+                                    const optionItem = button.closest('.option-item');
+                                    const optionsList = document.getElementById('optionsList');
+                                    const optionItems = optionsList.querySelectorAll('.option-item');
+
+                                    // 确保至少保留一个选项
+                                    if (optionItems.length > 1) {
+                                        optionItem.remove();
+                                    } else {
+                                        alert('至少需要保留一个选项');
+                                    }
+                                }
+
+                                // 保存问题
+                                function saveQuestion() {
+                                    const form = document.getElementById('questionForm');
+                                    const content = document.getElementById('questionContent').value.trim();
+                                    const type = document.getElementById('questionType').value;
+
+                                    // 基本验证
+                                    if (!content) {
+                                        document.getElementById('questionContent').classList.add('is-invalid');
+                                        return;
+                                    }
+
+                                    // 收集选项数据
+                                    let optionsJson = null;
+                                    if (type !== 'Text') {
+                                        const optionInputs = form.querySelectorAll('.option-input');
+                                        const options = [];
+                                        let isValid = true;
+
+                                        optionInputs.forEach(input => {
+                                            const value = input.value.trim();
+                                            if (!value) {
+                                                input.classList.add('is-invalid');
+                                                isValid = false;
+                                            } else {
+                                                input.classList.remove('is-invalid');
+                                                options.push(value);
+                                            }
+                                        });
+
+                                        if (!isValid) {
+                                            return;
+                                        }
+
+                                        optionsJson = JSON.stringify(options);
+                                    }
+
+                                    // 构建问题数据
+                                    const questionData = {
+                                        Content: content,
+                                        Type: type,
+                                        OptionsJson: optionsJson
+                                    };
+
+                                    // 保存到本地数组
+                                    if (currentEditingQuestionIndex === -1) {
+                                        // 添加新问题
+                                        questions.push(questionData);
+                                    } else {
+                                        // 更新现有问题
+                                        questions[currentEditingQuestionIndex] = questionData;
+                                    }
+
+                                    // 更新隐藏字段值
+                                    document.getElementById('questionsJson').value = JSON.stringify(questions);
+
+                                    // 更新问题列表UI
+                                    renderQuestionsList();
+
+                                    // 关闭模态框
+                                    const modal = bootstrap.Modal.getInstance(document.getElementById('questionModal'));
+                                    modal.hide();
+                                }
+
+                                // 添加问题到问卷 (保持兼容性)
                                 window.addQuestionToQuestionnaire = function (questionData) {
                                     questions.push({
                                         Content: questionData.Content,
@@ -95,6 +305,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <h6 class="card-title mb-0">问题 ${index + 1}: ${q.Content}</h6>
                             <div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="openEditModal(${index})"><i class="bi bi-pencil"></i></button>
                                 <button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="moveQuestionUp(${index})" ${index === 0 ? 'disabled' : ''}>
                                     <i class="bi bi-arrow-up"></i>
                                 </button>
@@ -166,12 +377,12 @@
     </div>
 </div>
 
-<!-- 问题添加模态框 -->
+<!-- 问题添加/编辑模态框 -->
 <div class="modal fade" id="questionModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">添加问题</h5>
+                <h5 class="modal-title" id="questionModalLabel">添加问题</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -187,44 +398,8 @@
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
     <script>
-        $(document).ready(function () {
-            // 加载问题创建表单到模态框
-            $('#questionModal').on('show.bs.modal', function () {
-                // 清空容器并移除之前的事件监听器
-                const container = $('#questionFormContainer');
-                container.empty().off();
-
-                // 加载创建表单
-                container.load('@Url.Action("Create", "Questions")?questionnaireId=' + $('#Id').val(), function () {
-                    // 为加载的表单添加提交事件处理
-                    container.find('form').on('submit', function (e) {
-                        e.preventDefault();
-                        const form = this;
-                        const questionData = {
-                            Content: form.querySelector('input[name="Content"]').value,
-                            Type: form.querySelector('select[name="Type"]').value
-                        };
-
-                        // 收集选项数据
-                        const optionInputs = form.querySelectorAll('input[name^="Options["]');
-                        const options = [];
-                        optionInputs.forEach(input => {
-                            if (input.value.trim()) {
-                                options.push(input.value.trim());
-                            }
-                        });
-                        questionData.OptionsJson = JSON.stringify(options);
-
-                        // 添加问题到问卷
-                        window.addQuestionToQuestionnaire(questionData);
-
-                        // 关闭模态框
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('questionModal'));
-                        modal.hide();
-                    });
-                });
-            });
-
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function () {
             // 确保Bootstrap模态框可用
             window.bootstrap = window.bootstrap || {};
         });
