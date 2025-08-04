@@ -17,6 +17,27 @@ namespace EngagementLetter.Controllers
             _context = context;
         }
 
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteConfirmed(string id)
+        {
+            var questionnaire = await _context.Questionnaires
+                .Include(q => q.Questions)
+                .FirstOrDefaultAsync(m => m.Id == id);
+            
+            if (questionnaire == null)
+            {
+                return NotFound();
+            }
+            
+            // 删除关联的问题
+            _context.Questions.RemoveRange(questionnaire.Questions);
+            _context.Questionnaires.Remove(questionnaire);
+            await _context.SaveChangesAsync();
+            
+            return RedirectToAction(nameof(Index));
+        }
+
         // GET: Questionnaires
         public async Task<IActionResult> Index()
         {
