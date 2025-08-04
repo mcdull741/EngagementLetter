@@ -133,6 +133,10 @@
 
         // 更新隐藏字段
         function updateQuestionsJson() {
+            // 根据当前顺序更新SortOrder
+            questions.forEach((q, index) => {
+                q.SortOrder = index + 1; // 从1开始编号
+            });
             document.getElementById('questionsJson').value = JSON.stringify(questions);
         }
 
@@ -351,7 +355,8 @@
                 Content: content,
                 Type: type,
                 OptionsJson: optionsJson,
-                SortOrder: currentEditIndex === -1 ? questions.length : questions[currentEditIndex].SortOrder
+                //新问题，添加到问题列表最后
+                SortOrder: currentEditIndex === -1 ? (questions.length + 1) : questions[currentEditIndex].SortOrder
             };
 
             if (currentEditIndex === -1) {
@@ -367,7 +372,23 @@
             renderQuestionsList();
 
             // 关闭模态框
-            bootstrap.Modal.getInstance(document.getElementById('questionModal')).hide();
+            const modal = bootstrap.Modal.getInstance(document.getElementById('questionModal'));
+            if (modal) {
+                modal.hide();
+
+                // 确保模态框完全关闭后执行后续操作
+                modal._element.addEventListener('hidden.bs.modal', function() {
+                    // 移除所有模态框背景遮罩
+                    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+                        backdrop.remove();
+                    });
+
+                    // 重新启用页面交互
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                }, { once: true });
+            }
         }
 
         // 生成唯一ID

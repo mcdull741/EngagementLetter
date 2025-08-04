@@ -151,12 +151,14 @@ namespace EngagementLetter.Controllers
                                     existingQuestion.Content = question.Content;
                                     existingQuestion.Type = question.Type;
                                     existingQuestion.OptionsJson = question.OptionsJson;
+                                    existingQuestion.SortOrder = question.SortOrder;
                                     // 更新其他需要更新的字段
                                     _context.Questions.Update(existingQuestion);
                                 }
                                 else
                                 {
                                     // 如果数据库中不存在该ID的问题，则添加为新问题
+                                    question.Id = Guid.NewGuid().ToString();
                                     _context.Questions.Add(question);
                                 }
                             }

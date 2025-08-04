@@ -1,20 +1,38 @@
 @model Questionnaire
 @{ Layout = "~/Views/Shared/_Layout.cshtml"; }
+@{
+    ViewData["Title"] = "预览问卷";
+}
 
 <div class="container mx-auto px-4 py-8">
+    <!-- 返回问卷列表按钮 -->
+    <div class="fixed top-4 right-4 z-10" style="right: 1rem !important;">
+        <a href="@Url.Action("Index", "Questionnaires")" class="btn btn-primary">
+            返回问卷列表
+        </a>
+    </div>
+
+    <!-- 返回顶端按钮 -->
+    <button id="backToTop" class="fixed bottom-4 right-4 z-10 btn btn-primary" style="display: none;">
+        返回顶端
+    </button>
     <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="mb-8">
+        <!-- 上部分：问卷属性 -->
+        <div class="mb-10 pb-8 border-b-2 border-gray-300 bg-gray-50 p-6 rounded-lg">
             <h1 class="text-2xl font-bold text-gray-800">@Model.Title</h1>
-            <p class="text-gray-600 mt-2">@Model.Description</p>
-            <div class="text-sm text-gray-500 mt-1">创建日期: @Model.CreatedDate.ToString("yyyy-MM-dd")</div>
-            <div class="text-sm text-gray-500 mt-1">修改时间: @Model.LastModifiedDate.ToString("yyyy-MM-dd")</div>
+            <p class="text-gray-600 mt-3">@Model.Description</p>
+            <div class="text-sm text-gray-500 mt-2">创建日期: @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm:ss")</div>
+            <div class="text-sm text-gray-500 mt-1">修改时间: @Model.LastModifiedDate.ToString("yyyy-MM-dd HH:mm:ss")</div>
         </div>
 
-        <div class="border-t border-gray-200 pt-6">
+        <!-- 下部分：问题列表 -->
+        <div class="pt-6">
+            @{ int questionNumber = 1; }
             @foreach (var question in Model.Questions.OrderBy<Question, int>(q => q.SortOrder))
             {
-                <div class="mb-8 question-block">
-                    <div class="font-medium text-gray-800 mb-2">@question.SortOrder. @question.Content</div>
+                <div class="mb-8 question-block p-4 border border-gray-200 rounded-lg shadow-sm @(questionNumber % 2 == 1 ? "bg-white" : "bg-gray-50")">
+                    <div class="font-medium text-gray-800 mb-2">@questionNumber. @question.Content</div>
+                    @{ questionNumber++; }
                     @if (!string.IsNullOrEmpty(question.OptionsJson))
                     {
                         var options = System.Text.Json.JsonSerializer.Deserialize<List<string>>(question.OptionsJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -22,10 +40,17 @@
                             @foreach (var option in options)
                             {
                                 <div class="flex items-center">
-                                    <input type="radio" id="option_@question.Id@option" name="question_@question.Id" class="h-4 w-4 text-blue-600">
+                                    <input type="checkbox" id="option_@question.Id@option" name="question_@(question.Id)_@option" class="h-4 w-4 text-blue-600">
                                     <label for="option_@question.Id@option" class="ml-2 text-gray-700">@option</label>
                                 </div>
                             }
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- 文本类型问题的输入框 -->
+                        <div class="ml-4 mt-3">
+                            <textarea id="answer_@question.Id" name="question_@question.Id" class="form-control" rows="3" placeholder="请输入您的回答..."></textarea>
                         </div>
                     }
                 </div>
@@ -33,3 +58,38 @@
         </div>
     </div>
 </div>
+
+<script>
+    // 返回顶端按钮逻辑
+    const backToTopButton = document.getElementById('backToTop');
+    const firstQuestion = document.querySelector('.question-block');
+    const homeButton = document.querySelector('.fixed.top-4.right-4');
+
+    // 监听滚动事件
+    window.addEventListener('scroll', () => {
+        // 检查是否滚动超过一定距离，并且看不到返回主页按钮
+        if (window.scrollY > 300 && isElementInViewport(homeButton) === false) {
+            backToTopButton.style.display = 'block';
+        } else {
+            backToTopButton.style.display = 'none';
+        }
+    });
+
+    // 点击返回顶端按钮
+    backToTopButton.addEventListener('click', () => {
+        if (firstQuestion) {
+            firstQuestion.scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+
+    // 检查元素是否在视口中
+    function isElementInViewport(el) {
+        const rect = el.getBoundingClientRect();
+        return (
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+        );
+    }
+</script>
