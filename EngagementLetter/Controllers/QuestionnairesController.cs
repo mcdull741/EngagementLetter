@@ -23,6 +23,24 @@ namespace EngagementLetter.Controllers
             return View(await _context.Questionnaires.ToListAsync());
         }
 
+        // GET: Questionnaires/HasActiveQuestionnaire
+        public async Task<IActionResult> HasActiveQuestionnaire(string excludeId = null)
+        {
+            var query = _context.Questionnaires.Where(q => q.IsActive);
+            if (string.IsNullOrEmpty(excludeId))
+            {
+                query = query.Where(q => q.Id != excludeId);
+            }
+            // 编辑问卷时，检查除当前问卷外是否有其他启用的问卷
+            var activeIds = await query.Select(q => q.Id).ToListAsync();
+            var hasActive = activeIds != null && activeIds.Count() > 0;
+
+            return Json(new { 
+                hasActive = hasActive,
+                activeIds = activeIds
+            });
+        }
+
         // GET: Questionnaires/Create
         public IActionResult Create()
         {
@@ -41,6 +59,14 @@ namespace EngagementLetter.Controllers
                 _context.Add(questionnaire);
                 await _context.SaveChangesAsync();
 
+                //update active to inactive
+                if (questionnaire.IsActive)
+                {
+                    await _context.Questionnaires
+                        .Where(q => q.Id != questionnaire.Id && q.IsActive)
+                        .ExecuteUpdateAsync(q => q.SetProperty(q => q.IsActive, false));
+                }
+
                 if (!string.IsNullOrEmpty(QuestionsJson))
                 {
                     var questions = JsonConvert.DeserializeObject<List<Question>>(QuestionsJson);
@@ -48,6 +74,10 @@ namespace EngagementLetter.Controllers
                     {
                         question.QuestionnaireId = questionnaire.Id;
                         question.Id = Guid.NewGuid().ToString();
+                        if(question.Type == QuestionType.Text)
+                        {
+                            question.OptionsJson = "[]";
+                        }
                         _context.Questions.Add(question);
                     }
                     await _context.SaveChangesAsync();
@@ -122,6 +152,14 @@ namespace EngagementLetter.Controllers
                         _context.Update(originalQuestionnaire);
                     }
 
+                    //update active to inactive
+                    if (questionnaire.IsActive)
+                    {
+                        await _context.Questionnaires
+                            .Where(q => q.Id != questionnaire.Id && q.IsActive)
+                            .ExecuteUpdateAsync(q => q.SetProperty(q => q.IsActive, false));
+                    }
+
                     // 处理问题更新或插入
                     if (!string.IsNullOrEmpty(QuestionsJson))
                     {
@@ -159,6 +197,10 @@ namespace EngagementLetter.Controllers
                                 {
                                     // 如果数据库中不存在该ID的问题，则添加为新问题
                                     question.Id = Guid.NewGuid().ToString();
+                                    if(question.Type == QuestionType.Text)
+                                    {
+                                        question.OptionsJson = "[]";
+                                    }
                                     _context.Questions.Add(question);
                                 }
                             }

@@ -13,7 +13,7 @@
     <!-- 问卷表单 -->
     <div class="row justify-content-center">
         <div class="col-md-10 col-lg-8">
-            <form asp-action="Create" class="needs-validation" novalidate>
+            <form id="questionnaireForm" asp-action="Create" class="needs-validation" novalidate>
                 <input type="hidden" asp-for="Id" />
                 <!-- 问卷属性区域 -->
                 <div class="card mb-4 shadow-sm">
@@ -398,6 +398,69 @@
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
     <script>
+        let hasActiveQuestionnaire = false; // 在全局作用域中声明
+
+        // 检查是否已有启用的问卷
+        function checkActiveQuestionnaire() {
+            return new Promise((resolve) => {
+                $.ajax({
+                    url: '/Questionnaires/HasActiveQuestionnaire',
+                    type: 'GET',
+                    success: function(data) {
+                        resolve(data.hasActive);
+                    },
+                    error: function() {
+                        console.error('检查启用问卷失败');
+                        resolve(false);
+                    }
+                });
+            });
+        }
+
+        // 页面加载时检查是否已有启用的问卷
+        document.addEventListener('DOMContentLoaded', async function() {
+            hasActiveQuestionnaire = await checkActiveQuestionnaire();
+
+            // 为表单添加提交事件监听器
+            const form = document.getElementById('questionnaireForm');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const isActive = document.getElementById('IsActive').checked;
+
+                    // 如果用户勾选了启用问卷且系统中已有启用的问卷，则显示确认对话框
+                    if (isActive && hasActiveQuestionnaire) {
+                        e.preventDefault(); // 阻止默认提交
+
+                        if (confirm('系统中已有启用的问卷。确定要启用当前问卷并禁用其他问卷吗？')) {
+                            // 用户确认后提交表单
+                            this.submit();
+                        }
+                    }
+                    // 如果用户未勾选启用问卷，或系统中没有启用的问卷，则直接提交表单
+                });
+            }
+        });
+
+        // 为表单添加提交事件
+        /***
+        document.querySelector('form').addEventListener('submit', async function(e) {
+            hasActiveQuestionnaire = await checkActiveQuestionnaire();
+            const isActive = document.querySelector('input[name="IsActive"]').checked;
+
+            // 如果用户勾选了启用问卷，且系统中已有启用的问卷
+            if (isActive && hasActiveQuestionnaire) {
+                e.preventDefault(); // 阻止默认提交
+
+                // 显示确认对话框
+                if (confirm('系统中已有启用的问卷。继续操作将禁用现有问卷并启用当前问卷，是否继续？')) {
+                    // 用户确认，继续提交表单
+                    this.submit();
+                }
+                // 用户取消，不提交表单
+            }
+            // 如果未勾选启用问卷，或系统中没有启用的问卷，直接提交
+        });
+        ***/
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function () {
             // 确保Bootstrap模态框可用
