@@ -50,9 +50,7 @@
                             <div>@item.LastModifiedDate.ToString("yyyy-MM-dd")</div>
                         </td>
                         <td style="border: 1px solid #000;">
-                            <span>
-                                @(item.IsActive ? "已发布" : "草稿")
-                            </span>
+                            <div>@item.Status</div>
                         </td>
                         <td style="border: 1px solid #000;">
                             <a href="/Questionnaires/Edit/@item.Id">编辑</a>

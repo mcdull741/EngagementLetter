@@ -1,11 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using EngagementLetter.Models.Base;
 
 namespace EngagementLetter.Models
 {
+    public enum QuestionnaireStatus
+    {
+        [Description("Drafted")]
+        Drafted,
+        [Description("Published")]
+        Published,
+        [Description("Archived")]
+        Archived
+    }
     public class Questionnaire : BaseEntity
     {
         [Required(ErrorMessage = "问卷标题不能为空")]
@@ -27,6 +37,15 @@ namespace EngagementLetter.Models
 
         [Display(Name = "是否启用")]
         public bool IsActive { get; set; } = true;
+
+        [Display(Name = "问卷状态")]
+        public QuestionnaireStatus Status { get; set; } = QuestionnaireStatus.Drafted;
+        
+        [Display(Name = "创建用户")]
+        public string? CreatedBy { get; set; }
+        
+        [Display(Name = "修改用户")]
+        public string? LastModifiedBy { get; set; }
 
         [Display(Name = "问题列表")]
         public ICollection<Question> Questions { get; set; } = new List<Question>();

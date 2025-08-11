@@ -37,9 +37,15 @@
                         </div>
 
                         <!-- 启用状态 -->
-                        <div class="form-check mb-3">
-                            <input asp-for="IsActive" class="form-check-input" checked />
-                            <label asp-for="IsActive" class="form-check-label">启用问卷</label>
+                        <div class="form-group mb-3">
+                            <label asp-for="Status" class="form-label required">问卷状态</label>
+                            <select asp-for="Status" class="form-select" required>
+                                @foreach (var status in Enum.GetValues(typeof(QuestionnaireStatus)))
+                                {
+                                    <option value="@status">@status</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Status" class="text-danger"></span>
                         </div>
                     </div>
                 </div>
@@ -425,7 +431,8 @@
             const form = document.getElementById('questionnaireForm');
             if (form) {
                 form.addEventListener('submit', function(e) {
-                    const isActive = document.getElementById('IsActive').checked;
+                    const status = document.getElementById('Status').value;
+                    const isActive = status === 'Published';
 
                     // 如果用户勾选了启用问卷且系统中已有启用的问卷，则显示确认对话框
                     if (isActive && hasActiveQuestionnaire) {
@@ -441,26 +448,6 @@
             }
         });
 
-        // 为表单添加提交事件
-        /***
-        document.querySelector('form').addEventListener('submit', async function(e) {
-            hasActiveQuestionnaire = await checkActiveQuestionnaire();
-            const isActive = document.querySelector('input[name="IsActive"]').checked;
-
-            // 如果用户勾选了启用问卷，且系统中已有启用的问卷
-            if (isActive && hasActiveQuestionnaire) {
-                e.preventDefault(); // 阻止默认提交
-
-                // 显示确认对话框
-                if (confirm('系统中已有启用的问卷。继续操作将禁用现有问卷并启用当前问卷，是否继续？')) {
-                    // 用户确认，继续提交表单
-                    this.submit();
-                }
-                // 用户取消，不提交表单
-            }
-            // 如果未勾选启用问卷，或系统中没有启用的问卷，直接提交
-        });
-        ***/
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function () {
             // 确保Bootstrap模态框可用

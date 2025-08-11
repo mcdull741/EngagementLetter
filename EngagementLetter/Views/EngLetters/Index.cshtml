@@ -1,0 +1,76 @@
+@model IEnumerable<EngagementLetter.Models.EngLetter>
+
+@{ ViewData["Title"] = "Engagement Letter管理"; }
+
+<div class="container-fluid">
+    <!-- 页面标题栏 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">@ViewData["Title"]</h1>
+        
+        <!-- 功能操作区 -->
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-primary" disabled>新增</button>
+            <button type="button" class="btn btn-secondary" disabled>导出</button>
+            <button type="button" class="btn btn-info" disabled>刷新</button>
+        </div>
+    </div>
+
+    <!-- 筛选搜索区 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="关键词搜索..." disabled>
+                <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="button" disabled>搜索</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据表格区 -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>关联问卷名称</th>
+                            <th>创建日期</th>
+                            <th>最后修改日期</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>@item.Title</td>
+                                <td>@item.Questionnaire.Title</td>
+                                <td>@item.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>@(item.UpdatedDate.HasValue ? item.UpdatedDate.Value.ToString("yyyy-MM-dd HH:mm") : item.CreatedDate.ToString("yyyy-MM-dd HH:mm"))</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" disabled>预览</button>
+                                        <button class="btn btn-outline-secondary" disabled>编辑</button>
+                                        <button class="btn btn-outline-danger" disabled>删除</button>
+                                        <button class="btn btn-outline-success" disabled>导出报告</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页控件 (占位) -->
+    <nav aria-label="Page navigation example">
+        <ul class="pagination justify-content-center">
+            <li class="page-item disabled"><a class="page-link" href="#">上一页</a></li>
+            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+            <li class="page-item disabled"><a class="page-link" href="#">下一页</a></li>
+        </ul>
+    </nav>
+</div>

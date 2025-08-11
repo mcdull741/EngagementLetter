@@ -47,10 +47,12 @@ namespace EngagementLetter.Controllers
         // GET: Questionnaires/HasActiveQuestionnaire
         public async Task<IActionResult> HasActiveQuestionnaire(string excludeId = null)
         {
-            var query = _context.Questionnaires.Where(q => q.IsActive);
+            var query = _context.Questionnaires
+                        .Where(q => q.Status == QuestionnaireStatus.Published);
             if (string.IsNullOrEmpty(excludeId))
             {
-                query = query.Where(q => q.Id != excludeId);
+                query = query
+                        .Where(q => q.Id != excludeId);
             }
             // 编辑问卷时，检查除当前问卷外是否有其他启用的问卷
             var activeIds = await query.Select(q => q.Id).ToListAsync();
@@ -71,7 +73,7 @@ namespace EngagementLetter.Controllers
         // POST: Questionnaires/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Title,Description,IsActive")] Questionnaire questionnaire, string QuestionsJson)
+        public async Task<IActionResult> Create([Bind("Title,Description,Status")] Questionnaire questionnaire, string QuestionsJson)
         {
             if (ModelState.IsValid)
             {
@@ -80,12 +82,13 @@ namespace EngagementLetter.Controllers
                 _context.Add(questionnaire);
                 await _context.SaveChangesAsync();
 
-                //update active to inactive
-                if (questionnaire.IsActive)
+                //update status to archived
+
+                if (questionnaire.Status == QuestionnaireStatus.Published)
                 {
                     await _context.Questionnaires
-                        .Where(q => q.Id != questionnaire.Id && q.IsActive)
-                        .ExecuteUpdateAsync(q => q.SetProperty(q => q.IsActive, false));
+                        .Where(q => q.Id != questionnaire.Id && q.Status == QuestionnaireStatus.Published)
+                        .ExecuteUpdateAsync(q => q.SetProperty(q => q.Status, QuestionnaireStatus.Archived));
                 }
 
                 if (!string.IsNullOrEmpty(QuestionsJson))
@@ -149,7 +152,7 @@ namespace EngagementLetter.Controllers
         // POST: Questionnaires/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(string id, [Bind("Id,Title,Description,IsActive,CreatedDate")] Questionnaire questionnaire, string QuestionsJson)
+        public async Task<IActionResult> Edit(string id, [Bind("Id,Title,Description,Status,CreatedDate")] Questionnaire questionnaire, string QuestionsJson)
         {
             if (id != questionnaire.Id)
             {
@@ -167,18 +170,19 @@ namespace EngagementLetter.Controllers
                         // 只更新需要修改的字段
                         originalQuestionnaire.Title = questionnaire.Title;
                         originalQuestionnaire.Description = questionnaire.Description;
-                        originalQuestionnaire.IsActive = questionnaire.IsActive;
+                        //originalQuestionnaire.IsActive = questionnaire.IsActive;
+                        originalQuestionnaire.Status = questionnaire.Status;
                         originalQuestionnaire.LastModifiedDate = DateTime.Now; // 更新修改时间
 
                         _context.Update(originalQuestionnaire);
                     }
 
-                    //update active to inactive
-                    if (questionnaire.IsActive)
+                    //update published to archived
+                    if (questionnaire.Status == QuestionnaireStatus.Published)
                     {
                         await _context.Questionnaires
-                            .Where(q => q.Id != questionnaire.Id && q.IsActive)
-                            .ExecuteUpdateAsync(q => q.SetProperty(q => q.IsActive, false));
+                            .Where(q => q.Id != questionnaire.Id && q.Status == QuestionnaireStatus.Published)
+                            .ExecuteUpdateAsync(q => q.SetProperty(q => q.Status, QuestionnaireStatus.Archived));
                     }
 
                     // 处理问题更新或插入

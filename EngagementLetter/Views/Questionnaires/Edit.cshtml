@@ -40,8 +40,13 @@
 
                         <!-- 启用状态 -->
                         <div class="form-check mb-3">
-                            <input asp-for="IsActive" class="form-check-input" />
-                            <label asp-for="IsActive" class="form-check-label">启用问卷</label>
+                            <select asp-for="Status" class="form-select">
+                                @foreach (var status in Enum.GetValues(typeof(QuestionnaireStatus)))
+                                {
+                                    <option value="@status">@status</option>
+                                }
+                            </select>
+                            <label asp-for="Status" class="form-check-label">问卷状态</label>
                         </div>
 
                         <!-- 创建日期显示 -->
@@ -130,7 +135,8 @@
 
             // 为表单添加提交事件监听器
             $('#questionnaireForm').on('submit', function(e) {
-                const isActive = $('#IsActive').is(':checked');
+                const status = $('#Status').val();
+                const isActive = status === 'Published';
 
                 // 如果用户勾选了启用问卷且系统中已有启用的问卷，则显示确认对话框
                 if (isActive && hasActiveQuestionnaire) {
@@ -144,25 +150,7 @@
                 // 如果用户未勾选启用问卷，或系统中没有启用的问卷，则直接提交表单
             });
         });
-        /***
-        // 为表单添加提交事件
-        document.querySelector('form').addEventListener('submit', async function(e) {
-            const isActive = document.querySelector('input[name="IsActive"]').checked;
 
-            // 如果用户勾选了启用问卷，且系统中已有启用的问卷
-            if (isActive && hasActiveQuestionnaire) {
-                e.preventDefault(); // 阻止默认提交
-
-                // 显示确认对话框
-                if (confirm('系统中已有启用的问卷。继续操作将禁用现有问卷并启用当前问卷，是否继续？')) {
-                    // 用户确认，继续提交表单
-                    this.submit();
-                }
-                // 用户取消，不提交表单
-            }
-            // 如果未勾选启用问卷，或系统中没有启用的问卷，直接提交
-        });
-        ***/
         let questions = [];
         let currentEditIndex = -1;
 
