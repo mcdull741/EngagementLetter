@@ -7,11 +7,13 @@ namespace EngagementLetter.Models
 {
     public class UserResponse : BaseEntity
     {
+        [Required(ErrorMessage = "问题ID不能为空")]
         [Display(Name = "问题ID")]
-        public required string QuestionId { get; set; }
+        public string QuestionId { get; set; }
 
+        [Required(ErrorMessage = "EngLetter ID不能为空")]
         [Display(Name = "EngLetter ID")]
-        public required string EngLetterId { get; set; }
+        public string EngLetterId { get; set; }
 
         [Display(Name = "文本回答")]
         [MaxLength(1000, ErrorMessage = "回答长度不能超过1000个字符")]

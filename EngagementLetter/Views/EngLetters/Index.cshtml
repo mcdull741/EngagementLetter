@@ -9,9 +9,39 @@
         
         <!-- 功能操作区 -->
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-primary" disabled>新增</button>
-            <button type="button" class="btn btn-secondary" disabled>导出</button>
-            <button type="button" class="btn btn-info" disabled>刷新</button>
+            <button type="button" class="btn btn-primary" id="createEngagementLetterBtn">新建</button>
+            <script>
+                document.getElementById('createEngagementLetterBtn').addEventListener('click', function() {
+                    // 生成临时ID标识当前会话
+                    const tempId = 'el_' + Date.now();
+                    // 存储临时ID和空答案对象到localStorage
+                    localStorage.setItem('currentEngagementLetterId', tempId);
+                    localStorage.setItem('engagementLetterAnswers_' + tempId, JSON.stringify({}));
+                    // 跳转到Engagement Letter创建页面
+                    // 获取已发布问卷
+                    fetch('@Url.Action("GetPublishedQuestionnaires", "Questionnaires")')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.length === 0) {
+                                alert('没有找到已发布的问卷，请先创建并发布问卷');
+                            } else if (data.length === 1) {
+                                // 只有一个已发布问卷，直接使用其ID
+                                window.location.href = '@Url.Action("Preview", "Questionnaires")?id=' + data[0].id + '&mode=create';
+                            } else {
+                                // 多个已发布问卷，显示选择对话框
+                                const questionnaireId = prompt('请选择要使用的问卷:\n' + data.map(q => `${q.id}: ${q.title}`).join('\n'), data[0].id);
+                                if (questionnaireId) {
+                                    window.location.href = '@Url.Action("Preview", "Questionnaires")?id=' + questionnaireId + '&mode=create';
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('获取问卷失败:', error);
+                            alert('获取问卷列表失败，请重试');
+                        });;
+                });
+            </script>
+            <button type="button" class="btn btn-info" onclick="location.reload()">刷新</button>
         </div>
     </div>
 

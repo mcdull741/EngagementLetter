@@ -59,10 +59,21 @@ namespace EngagementLetter.Controllers
             var hasActive = activeIds != null && activeIds.Count() > 0;
 
             return Json(new { 
-                hasActive = hasActive,
-                activeIds = activeIds
-            });
-        }
+            hasActive = hasActive,
+            activeIds = activeIds
+        });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetPublishedQuestionnaires()
+    {
+        var publishedQuestionnaires = await _context.Questionnaires
+            .Where(q => q.Status == QuestionnaireStatus.Published)
+            .Select(q => new { q.Id, q.Title })
+            .ToListAsync();
+        
+        return Json(publishedQuestionnaires);
+    }
 
         // GET: Questionnaires/Create
         public IActionResult Create()

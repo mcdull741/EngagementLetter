@@ -35,6 +35,7 @@ namespace EngagementLetter.Models
         [DataType(DataType.DateTime)]
         public DateTime LastModifiedDate { get; set; } = DateTime.Now;
 
+        //待删除
         [Display(Name = "是否启用")]
         public bool IsActive { get; set; } = true;
 

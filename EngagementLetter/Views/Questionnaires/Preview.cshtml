@@ -1,16 +1,26 @@
 @model Questionnaire
-@{ Layout = "~/Views/Shared/_Layout.cshtml"; }
+@using EngagementLetter.Models
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
 @{
     ViewData["Title"] = "预览问卷";
 }
 
 <div class="container mx-auto px-4 py-8">
     <!-- 返回问卷列表按钮 -->
+    @{ 
+        var mode = Context.Request.Query["mode"];
+        bool isCreateMode = mode == "create"; 
+    }
+    @if (!isCreateMode)
+    {
     <div class="fixed top-4 right-4 z-10" style="right: 1rem !important;">
         <a href="@Url.Action("Index", "Questionnaires")" class="btn btn-primary">
             返回问卷列表
         </a>
     </div>
+    }
 
     <!-- 返回顶端按钮 -->
     <button id="backToTop" class="fixed bottom-4 right-4 z-10 btn btn-primary" style="display: none;">
@@ -21,45 +31,164 @@
         <div class="mb-10 pb-8 border-b-2 border-gray-300 bg-gray-50 p-6 rounded-lg">
             <h1 class="text-2xl font-bold text-gray-800">@Model.Title</h1>
             <p class="text-gray-600 mt-3">@Model.Description</p>
+            @if (!isCreateMode)
+            {
             <div class="text-sm text-gray-500 mt-2">创建日期: @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm:ss")</div>
             <div class="text-sm text-gray-500 mt-1">修改时间: @Model.LastModifiedDate.ToString("yyyy-MM-dd HH:mm:ss")</div>
+            }
         </div>
 
         <!-- 下部分：问题列表 -->
         <div class="pt-6">
-            @{ int questionNumber = 1; }
+            @{
+                int questionNumber = 1;
+            }
             @foreach (var question in Model.Questions.OrderBy<Question, int>(q => q.SortOrder))
             {
                 <div class="mb-8 question-block p-4 border border-gray-200 rounded-lg shadow-sm @(questionNumber % 2 == 1 ? "bg-white" : "bg-gray-50")">
-                    <div class="font-medium text-gray-800 mb-2">@questionNumber. @question.Content</div>
-                    @{ questionNumber++; }
-                    @if (!string.IsNullOrEmpty(question.OptionsJson))
+                <div class="font-medium text-gray-800 mb-2">@questionNumber. @question.Content</div>
+                @{
+                    questionNumber++;
+                }
+                @if (question.Type == QuestionType.Radio)
+                {
+                    var options = System.Text.Json.JsonSerializer.Deserialize<List<string>>(question.OptionsJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    <div class="ml-4 mt-3 space-y-2">
+                    @foreach (var option in options)
                     {
-                        var options = System.Text.Json.JsonSerializer.Deserialize<List<string>>(question.OptionsJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                        <div class="ml-4 mt-3 space-y-2">
-                            @foreach (var option in options)
-                            {
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="option_@question.Id@option" name="question_@(question.Id)_@option" class="h-4 w-4 text-blue-600">
-                                    <label for="option_@question.Id@option" class="ml-2 text-gray-700">@option</label>
-                                </div>
-                            }
+                        <div class="flex items-center">
+                            <input type="radio" id="option_@question.Id@option" name="question_@question.Id" value="@option" class="h-4 w-4 text-blue-600">
+                            <label for="option_@question.Id@option" class="ml-2 text-gray-700">@option</label>
                         </div>
                     }
-                    else
+                    </div>
+                }
+                else if (question.Type == QuestionType.CheckBox)
+                {
+                    var options = System.Text.Json.JsonSerializer.Deserialize<List<string>>(question.OptionsJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    <div class="ml-4 mt-3 space-y-2">
+                    @foreach (var option in options)
                     {
-                        <!-- 文本类型问题的输入框 -->
-                        <div class="ml-4 mt-3">
-                            <textarea id="answer_@question.Id" name="question_@question.Id" class="form-control" rows="3" placeholder="请输入您的回答..."></textarea>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="option_@question.Id@option" name="question_@question.Id" value="@option" class="h-4 w-4 text-blue-600">
+                            <label for="option_@question.Id@option" class="ml-2 text-gray-700">@option</label>
                         </div>
                     }
+                    </div>
+                }
+                else // Text type
+                {
+                    <div class="ml-4 mt-3">
+                        <textarea id="answer_@question.Id" name="question_@question.Id" class="form-control" rows="3" placeholder="请输入您的回答..."></textarea>
+                    </div>
+                }
                 </div>
             }
         </div>
+
+        <!-- 已在页面顶部定义mode和isCreateMode变量，此处不再重复声明 -->
+        @if (isCreateMode)
+        {
+            <!-- 操作按钮区域 -->
+            <div class="mt-10 flex justify-center space-x-4">
+                <button id="saveBtn" class="btn btn-success px-6 py-2">保存</button>
+                @Html.AntiForgeryToken()
+                <script>
+                    document.getElementById('saveBtn').addEventListener('click', async function() {
+                        console.log('答案保存到数据库');
+                        // 获取问卷ID
+                        const questionnaireId = '@Model.Id';
+                        // 获取临时ID
+                        const tempId = localStorage.getItem('currentEngagementLetterId');
+                        if (!tempId) {
+                            alert('会话已过期，请重新创建Engagement Letter');
+                            window.location.href = '@Url.Action("Index", "EngLetters")';
+                            return;
+                        }
+                        // 获取用户输入的Engagement Letter标题
+                        const title = prompt('请输入Engagement Letter标题:', 'Engagement Letter - ' + new Date().toLocaleString());
+                        console.log('title:', title);
+                        if (title === null || title.trim() === '') return; // 用户取消输入或输入为空字符串时返回
+
+                        // 收集所有问题答案
+                        const userResponses = [];
+                        const questions = @Html.Raw(Json.Serialize(Model.Questions));
+                        questions.forEach(question => {
+                            if (question.type === 0 || question.type === 1) { // 0: Radio, 1: CheckBox
+                                // 处理选择题答案
+                                const questionId = question.id;
+                                const selectedOptions = Array.from(document.querySelectorAll(`input[name="question_${questionId}"]:checked`))
+                                    .map(input => input.value);
+                                if (selectedOptions.length > 0) {
+                                    userResponses.push({
+                                        engLetterId: "pending",
+                                        questionId: questionId,
+                                        textResponse: JSON.stringify(selectedOptions)
+                                    });
+                                }
+                            } else {
+                                // 处理文本答案
+                                const questionId = question.id;
+                                const textResponse = document.getElementById(`answer_${questionId}`).value;
+                                console.log("textResponse:", textResponse);
+                                if (textResponse.trim()) {
+                                    userResponses.push({
+                                        engLetterId: "pending",
+                                        questionId: questionId,
+                                        textResponse: JSON.stringify([textResponse.trim()])
+                                    });
+                                }
+                            }
+                        });
+
+                        if (userResponses.length === 0) {
+                            alert('请至少回答一个问题');
+                            return;
+                        }
+
+                        try {
+                            // 保存Engagement Letter和答案
+                            const response = await fetch('@Url.Action("Create", "EngLetters")', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                                },
+                                body: JSON.stringify({
+                                    title: title,
+                                    questionnaireId: questionnaireId,
+                                    userResponses: userResponses
+                                })
+                            });
+
+                            if (response.ok) {
+                                // 清除localStorage
+                                localStorage.removeItem('currentEngagementLetterId');
+                                localStorage.removeItem('engagementLetterAnswers_' + tempId);
+                                alert('Engagement Letter保存成功');
+                                window.location.href = '@Url.Action("Index", "EngLetters")';
+                            } else {
+                                alert('保存失败: ' + await response.text());
+                            }
+                        } catch (error) {
+                            console.error('保存出错:', error);
+                            alert('保存时发生错误，请重试');
+                        }
+                    });
+                </script>
+                <button id="cancelBtn" class="btn btn-danger px-6 py-2">取消</button>
+
+                <script>
+                    document.getElementById('cancelBtn').addEventListener('click', function() {
+                        window.location.href = '@Url.Action("Index", "EngLetters")';
+                    });
+                </script>
+            </div>
+        }
     </div>
 </div>
 
-<script>
+    <script>
     // 返回顶端按钮逻辑
     const backToTopButton = document.getElementById('backToTop');
     const firstQuestion = document.querySelector('.question-block');
@@ -92,4 +221,30 @@
             rect.right <= (window.innerWidth || document.documentElement.clientWidth)
         );
     }
-</script>
+    </script>
+
+    <script>
+        // 获取URL模式参数
+        const mode = new URLSearchParams(window.location.search).get('mode');
+        const isCreateMode = mode === 'create';
+
+        // 创建模式下检查临时ID
+        if (isCreateMode) {
+            const tempId = localStorage.getItem('currentEngagementLetterId');
+            if (!tempId) {
+                alert('会话已过期，请重新创建Engagement Letter');
+                window.location.href = '@Url.Action("Index", "EngLetters")';
+            }
+        }
+
+        // 创建模式下不再执行答案恢复逻辑，只渲染空白问卷
+
+        // 新建模式下不需要保存到localStorage，直接由保存按钮处理数据库保存
+
+        // 取消按钮事件
+        document.getElementById('cancelBtn').addEventListener('click', function() {
+            if (confirm('确定要取消吗？')) {
+                window.location.href = '@Url.Action("Index", "EngLetters")';
+            }
+        });
+    </script>
