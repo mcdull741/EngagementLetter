@@ -2,6 +2,8 @@
 
 @{ ViewData["Title"] = "Engagement Letter管理"; }
 
+@Html.AntiForgeryToken()
+
 <div class="container-fluid">
     <!-- 页面标题栏 -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -92,17 +94,22 @@
             fetch('/EngLetters/Delete/' + engLetterId, {
                 method: 'POST',
                 headers: {
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || '',
+                    'Content-Type': 'application/json'
                 }
             })
             .then(response => {
-                if (response.ok) {
+                if (!response.ok) {
+                    throw new Error('网络响应错误');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
                     alert('删除成功！');
                     location.reload(); // 刷新页面
                 } else {
-                    return response.json().then(data => {
-                        throw new Error(data.message || '删除失败');
-                    });
+                    alert('删除失败：' + data.message);
                 }
             })
             .catch(error => {
