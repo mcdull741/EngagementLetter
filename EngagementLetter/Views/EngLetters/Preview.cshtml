@@ -1,0 +1,174 @@
+@model EngagementLetter.Models.EngLetter
+
+@{ ViewData["Title"] = "预览 Engagement Letter"; }
+
+<div class="container mx-auto px-4 py-8">
+    <!-- 返回按钮 -->
+    <div class="fixed top-4 right-4 z-10">
+        <button onclick="window.history.back()" class="btn btn-primary">
+            <i class="fas fa-arrow-left mr-2"></i>返回列表
+        </button>
+    </div>
+
+    <!-- 页面标题 -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">@ViewData["Title"]</h1>
+    </div>
+
+    <!-- Engagement Letter 基本信息卡片 -->
+    <div class="bg-white rounded-lg shadow-md mb-8">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">
+                <i class="fas fa-file-alt mr-2 text-blue-600"></i>基本信息
+            </h2>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">标题</label>
+                        <p class="text-lg font-semibold text-gray-900">@Model.Title</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">关联问卷</label>
+                        <p class="text-gray-600">
+                            <i class="fas fa-clipboard-list mr-1"></i>
+                            @(Model.Questionnaire?.Title ?? "未设置")
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">创建日期</label>
+                        <p class="text-gray-600">
+                            <i class="fas fa-calendar-alt mr-1"></i>
+                            @Model.CreatedDate.ToString("yyyy-MM-dd HH:mm")
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">最后修改</label>
+                        <p class="text-gray-600">
+                            <i class="fas fa-edit mr-1"></i>
+                            @(Model.UpdatedDate?.ToString("yyyy-MM-dd HH:mm") ?? "未修改")
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 详细内容 -->
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">
+                <i class="fas fa-list-alt mr-2 text-green-600"></i>详细内容
+            </h2>
+        </div>
+        <div class="p-6">
+            <iframe id="engLetterContentFrame" 
+                    src="/EngLetters/RenderContent?id=@Model.Id&mode=preview" 
+                    class="w-full border-0" 
+                    style="min-height: 600px; width: 100%; max-width: 100%;" 
+                    onload="resizeIframe(this)">
+            </iframe>
+        </div>
+    </div>
+
+    <!-- 底部操作栏 -->
+    <div class="text-center mt-8 space-x-4">
+        <button onclick="window.history.back()" class="btn btn-secondary">
+            <i class="fas fa-arrow-left mr-2"></i>返回列表
+        </button>
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="fas fa-print mr-2"></i>导出
+        </button>
+    </div>
+</div>
+
+<style>
+    @@media print {
+        .fixed, .text-center {
+            display: none !important;
+        }
+        
+        body {
+            background: white !important;
+        }
+        
+        .bg-white {
+            box-shadow: none !important;
+            border: none !important;
+        }
+        
+        .shadow-md {
+            box-shadow: none !important;
+        }
+        
+        .bg-gray-50 {
+            background: #f9fafb !important;
+        }
+        
+        .border-b {
+            border-bottom: 1px solid #e5e7eb !important;
+        }
+    }
+</style>
+
+<script>
+    // 添加打印样式类 - 使用纯JavaScript替代jQuery
+    document.addEventListener('DOMContentLoaded', function() {
+        document.body.classList.add('engagement-letter-preview');
+    });
+
+    // 调整iframe高度和宽度的函数
+    function resizeIframe(iframe) {
+        try {
+            // 设置高度
+            iframe.style.height = iframe.contentWindow.document.body.scrollHeight + 'px';
+            
+            // 设置宽度为容器宽度
+            var container = iframe.parentElement;
+            if (container) {
+                iframe.style.width = container.clientWidth + 'px';
+            }
+        } catch (e) {
+            console.log('无法自动调整iframe尺寸，使用默认设置');
+        }
+    }
+
+    // 响应式调整iframe尺寸
+    function adjustIframeResponsive() {
+        var iframe = document.getElementById('engLetterContentFrame');
+        if (iframe) {
+            try {
+                var container = iframe.parentElement;
+                if (container) {
+                    // 确保iframe宽度与容器一致
+                    iframe.style.width = container.clientWidth + 'px';
+                    
+                    // 通知iframe内部重新计算布局
+                    if (iframe.contentWindow) {
+                        iframe.contentWindow.postMessage({ type: 'resize' }, '*');
+                    }
+                }
+            } catch (e) {
+                console.log('响应式调整失败');
+            }
+        }
+    }
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', function() {
+        setTimeout(adjustIframeResponsive, 100);
+    });
+
+    // 监听iframe内部的消息来调整尺寸
+    window.addEventListener('message', function(e) {
+        if (e.data.type === 'resizeHeight' && e.data.height) {
+            var iframe = document.getElementById('engLetterContentFrame');
+            if (iframe) {
+                iframe.style.height = e.data.height + 'px';
+            }
+        }
+    });
+</script>

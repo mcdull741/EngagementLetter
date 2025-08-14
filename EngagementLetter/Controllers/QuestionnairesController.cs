@@ -75,6 +75,25 @@ namespace EngagementLetter.Controllers
         return Json(publishedQuestionnaires);
     }
 
+    [HttpGet("Questionnaires/GetQuestions/{id}")]
+    public async Task<IActionResult> GetQuestions(string id)
+    {
+        var questions = await _context.Questions
+            .Where(q => q.QuestionnaireId == id)
+            .OrderBy(q => q.SortOrder)
+            .Select(q => new
+            {
+                q.Id,
+                q.Content,
+                q.Type,
+                q.OptionsJson,
+                q.SortOrder
+            })
+            .ToListAsync();
+
+        return Json(questions);
+    }
+
         // GET: Questionnaires/Create
         public IActionResult Create()
         {

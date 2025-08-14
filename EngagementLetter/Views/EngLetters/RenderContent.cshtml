@@ -1,0 +1,182 @@
+@model EngagementLetter.Models.EngLetter
+@{ Layout = null; }
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+<style>
+    body { 
+        background: transparent; 
+        margin: 0; 
+        padding: 0; 
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    .content-container { 
+        max-width: 100%; 
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .responsive-content {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    @@media (max-width: 768px) {
+        .responsive-content {
+            padding: 0 10px;
+        }
+        .p-6 {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<div class="content-container responsive-content">
+        @if (Model.Questionnaire != null && Model.Questionnaire.Questions != null && Model.Questionnaire.Questions.Any())
+        {
+            var questionNumber = 1;
+            <div class="space-y-6">
+            @foreach (var question in Model.Questionnaire.Questions.OrderBy(q => q.SortOrder))
+            {
+                var userResponse = Model.UserResponses?.FirstOrDefault(r => r.QuestionId == question.Id);
+                var userAnswers = new List<string>();
+                if (userResponse != null && !string.IsNullOrEmpty(userResponse.TextResponse))
+                {
+                    try
+                    {
+                        userAnswers = System.Text.Json.JsonSerializer.Deserialize<string[]>(userResponse.TextResponse)?.ToList() ?? new List<string>();
+                    }
+                    catch
+                    {
+                        userAnswers = new List<string> { userResponse.TextResponse };
+                    }
+                }
+
+                <div class="bg-white border border-gray-200 rounded-lg p-6">
+                    <div class="flex items-start">
+                        <div class="flex-1">
+                            <div class="text-lg font-semibold text-gray-800 mb-4">
+                                <span class="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-800 rounded-full text-sm font-bold mr-3">
+                                    @questionNumber
+                                </span>
+                                <span>@question.Content</span>
+                            </div>
+
+                            @if (question.Type == EngagementLetter.Models.QuestionType.Radio)
+                            {
+                                var options = System.Text.Json.JsonSerializer.Deserialize<List<string>>(question.OptionsJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                <div class="space-y-3">
+                                    @foreach (var option in options)
+                                    {
+                                        var isChecked = userAnswers.Contains(option);
+                                        var isReadOnly = ViewBag.IsEditMode != true;
+                                        <div class="flex items-center">
+                                            <input type="radio" 
+                                                   id="option_@question.Id@option" 
+                                                   name="question_@question.Id" 
+                                                   value="@option" 
+                                                   class="h-4 w-4 text-blue-600" 
+                                                   @(isReadOnly ? "disabled" : "") 
+                                                   @(isChecked ? "checked" : "")>
+                                            <label for="option_@question.Id@option" 
+                                                   class="ml-2 text-sm font-medium @(isChecked ? "text-blue-700 font-semibold" : "text-gray-600")">
+                                                @option
+                                            </label>
+                                            @if (isChecked)
+                                            {
+                                                <i class="fas fa-check-circle text-green-500 ml-2 text-sm"></i>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else if (question.Type == EngagementLetter.Models.QuestionType.CheckBox)
+                            {
+                                var options = System.Text.Json.JsonSerializer.Deserialize<List<string>>(question.OptionsJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                <div class="space-y-3">
+                                    @foreach (var option in options)
+                                    {
+                                        var isChecked = userAnswers.Contains(option);
+                                        var isReadOnly = ViewBag.IsEditMode != true;
+                                        <div class="flex items-center">
+                                            <input type="checkbox" 
+                                                   id="option_@question.Id@option" 
+                                                   name="question_@question.Id" 
+                                                   value="@option" 
+                                                   class="h-4 w-4 text-blue-600 rounded" 
+                                                   @(isReadOnly ? "disabled" : "") 
+                                                   @(isChecked ? "checked" : "")>
+                                            <label for="option_@question.Id@option" 
+                                                   class="ml-2 text-sm font-medium @(isChecked ? "text-blue-700 font-semibold" : "text-gray-600")">
+                                                @option
+                                            </label>
+                                            @if (isChecked)
+                                            {
+                                                <i class="fas fa-check-circle text-green-500 ml-2 text-sm"></i>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else // Text type
+                            {
+                                var isReadOnly = ViewBag.IsEditMode != true;
+                                <div>
+                                    <textarea id="answer_@question.Id" 
+                                              name="question_@question.Id" 
+                                              class="form-control w-full p-3 border border-gray-300 rounded-md @(isReadOnly ? "bg-gray-50" : "bg-white")" 
+                                              rows="3" 
+                                              @(isReadOnly ? "disabled" : "") 
+                                              placeholder="请输入您的回答">@(userAnswers.FirstOrDefault() ?? "")</textarea>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                questionNumber++;
+            }
+            </div>
+        }
+        else
+        {
+            <div class="text-center text-gray-500 py-12">
+                <i class="fas fa-file-alt text-6xl mb-4 opacity-50"></i>
+                <h3 class="text-xl font-semibold mb-2">暂无详细内容</h3>
+                <p class="text-gray-400">这个 Engagement Letter 还没有关联问卷或回答记录</p>
+            </div>
+        }
+    </div>
+
+<script>
+    // 调整iframe高度的函数
+    function adjustHeight() {
+        var height = document.body.scrollHeight;
+        if (window.parent !== window) {
+            window.parent.postMessage({ type: 'resizeHeight', height: height }, '*');
+        }
+    }
+
+    // 页面加载完成后调整高度
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(adjustHeight, 100);
+    });
+
+    // 监听内容变化，动态调整高度
+    var observer = new MutationObserver(function(mutations) {
+        adjustHeight();
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true
+    });
+
+    // 监听父窗口的resize消息
+    window.addEventListener('message', function(e) {
+        if (e.data.type === 'resize') {
+            adjustHeight();
+        }
+    });
+</script>

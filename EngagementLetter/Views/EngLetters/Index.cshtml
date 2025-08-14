@@ -9,38 +9,7 @@
         
         <!-- 功能操作区 -->
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-primary" id="createEngagementLetterBtn">新建</button>
-            <script>
-                document.getElementById('createEngagementLetterBtn').addEventListener('click', function() {
-                    // 生成临时ID标识当前会话
-                    const tempId = 'el_' + Date.now();
-                    // 存储临时ID和空答案对象到localStorage
-                    localStorage.setItem('currentEngagementLetterId', tempId);
-                    localStorage.setItem('engagementLetterAnswers_' + tempId, JSON.stringify({}));
-                    // 跳转到Engagement Letter创建页面
-                    // 获取已发布问卷
-                    fetch('@Url.Action("GetPublishedQuestionnaires", "Questionnaires")')
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.length === 0) {
-                                alert('没有找到已发布的问卷，请先创建并发布问卷');
-                            } else if (data.length === 1) {
-                                // 只有一个已发布问卷，直接使用其ID
-                                window.location.href = '@Url.Action("Preview", "Questionnaires")?id=' + data[0].id + '&mode=create';
-                            } else {
-                                // 多个已发布问卷，显示选择对话框
-                                const questionnaireId = prompt('请选择要使用的问卷:\n' + data.map(q => `${q.id}: ${q.title}`).join('\n'), data[0].id);
-                                if (questionnaireId) {
-                                    window.location.href = '@Url.Action("Preview", "Questionnaires")?id=' + questionnaireId + '&mode=create';
-                                }
-                            }
-                        })
-                        .catch(error => {
-                            console.error('获取问卷失败:', error);
-                            alert('获取问卷列表失败，请重试');
-                        });;
-                });
-            </script>
+            <a href="@Url.Action("Create", "EngLetters")" class="btn btn-primary">新建</a>
             <button type="button" class="btn btn-info" onclick="location.reload()">刷新</button>
         </div>
     </div>
@@ -76,14 +45,14 @@
                         {
                             <tr>
                                 <td>@item.Title</td>
-                                <td>@item.Questionnaire.Title</td>
+                                <td>@(item.Questionnaire?.Title ?? "未设置")</td>
                                 <td>@item.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
                                 <td>@(item.UpdatedDate.HasValue ? item.UpdatedDate.Value.ToString("yyyy-MM-dd HH:mm") : item.CreatedDate.ToString("yyyy-MM-dd HH:mm"))</td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary" disabled>预览</button>
-                                        <button class="btn btn-outline-secondary" disabled>编辑</button>
-                                        <button class="btn btn-outline-danger" disabled>删除</button>
+                                        <button class="btn btn-outline-primary" onclick="previewEngagementLetter('@item.Id')">预览</button>
+                                        <button class="btn btn-outline-secondary" onclick="editEngagementLetter('@item.Id')">编辑</button>
+                                        <button class="btn btn-outline-danger" onclick="deleteEngagementLetter('@item.Id', '@item.Title')">删除</button>
                                         <button class="btn btn-outline-success" disabled>导出报告</button>
                                     </div>
                                 </td>
@@ -104,3 +73,42 @@
         </ul>
     </nav>
 </div>
+
+<script>
+    function previewEngagementLetter(engLetterId) {
+        // 跳转到预览页面，带上Engagement Letter的ID
+        window.location.href = '/EngLetters/Preview?id=' + encodeURIComponent(engLetterId);
+    }
+
+    function editEngagementLetter(engLetterId) {
+        // 跳转到编辑页面，带上Engagement Letter的ID
+        window.location.href = '/EngLetters/Edit/' + encodeURIComponent(engLetterId);
+    }
+
+    function deleteEngagementLetter(engLetterId, title) {
+        // 显示确认对话框
+        if (confirm('确定要删除Engagement Letter "' + title + '" 吗？\n\n此操作不可撤销！')) {
+            // 发送删除请求
+            fetch('/EngLetters/Delete/' + engLetterId, {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('删除成功！');
+                    location.reload(); // 刷新页面
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.message || '删除失败');
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('删除失败：' + error.message);
+            });
+        }
+    }
+</script>
