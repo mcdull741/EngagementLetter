@@ -1,0 +1,519 @@
+@model EngagementLetter.Controllers.TemplateCreateViewModel
+
+@{
+    ViewData["Title"] = "上传模板";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">上传模板</h1>
+        <a href="/Templates" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>返回列表
+        </a>
+    </div>
+
+    <form asp-action="Create" method="post" enctype="multipart/form-data" id="templateForm">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">模板基本信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label asp-for="Name" class="form-label">模板名称 <span class="text-danger">*</span></label>
+                            <input asp-for="Name" class="form-control" placeholder="请输入模板名称" />
+                            <span asp-validation-for="Name" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">模板描述</label>
+                            <textarea asp-for="Description" class="form-control" rows="3" placeholder="请输入模板描述"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="QuestionnaireId" class="form-label">关联问卷 <span class="text-danger">*</span></label>
+                                    @{
+                                        var urlParams = Context.Request.Query["questionnaireId"];
+                                        var hasQuestionnaireId = !string.IsNullOrEmpty(urlParams);
+                                    }
+                                    @if (hasQuestionnaireId)
+                                    {
+                                        <input type="hidden" asp-for="QuestionnaireId" />
+                                        <select class="form-select" disabled>
+                                            <option selected>@Model.Questionnaires.FirstOrDefault(q => q.Value == urlParams)?.Text</option>
+                                        </select>
+                                    }
+                                    else
+                                    {
+                                        <select asp-for="QuestionnaireId" class="form-select" asp-items="Model.Questionnaires">
+                                            <option value="">-- 请选择问卷 --</option>
+                                        </select>
+                                    }
+                                    <span asp-validation-for="QuestionnaireId" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Priority" class="form-label">优先级 <span class="text-danger">*</span></label>
+                                    <select asp-for="Priority" class="form-select">
+                                        <option value="100">最高 (100)</option>
+                                        <option value="90">很高 (90)</option>
+                                        <option value="80">高 (80)</option>
+                                        <option value="70">中高 (70)</option>
+                                        <option value="60">中等 (60)</option>
+                                        <option value="50">中低 (50)</option>
+                                        <option value="40">低 (40)</option>
+                                        <option value="30">较低 (30)</option>
+                                        <option value="20">很低 (20)</option>
+                                        <option value="10">最低 (10)</option>
+                                    </select>
+                                    <span asp-validation-for="Priority" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="TemplateFile" class="form-label">模板文件 <span class="text-danger">*</span></label>
+                            <input asp-for="TemplateFile" type="file" class="form-control" accept=".docx" />
+                            <div class="form-text">仅支持 .docx 格式的Word文档</div>
+                            <span asp-validation-for="TemplateFile" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">模板条件设置</h5>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCondition()">
+                                <i class="fas fa-plus me-1"></i>添加条件
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="conditionsList">
+                            <!-- 条件将动态添加到这里 -->
+                        </div>
+                        <div id="noConditions" class="text-center text-muted py-4">
+                            <i class="fas fa-filter fa-2x mb-2"></i>
+                            <p>暂无模板条件，点击"添加条件"按钮创建</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">操作</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>保存模板
+                            </button>
+                            <a href="/Templates" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i>取消
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">提示</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled small">
+                            <li class="mb-2">
+                                <i class="fas fa-info-circle text-info me-1"></i>
+                                模板条件将在保存模板时一并保存到数据库
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                                请确保模板文件格式正确，避免上传损坏的文件
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-lightbulb text-success me-1"></i>
+                                建议为模板设置合适的优先级，影响匹配顺序
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        let conditionIndex = 0;
+        const conditions = [];
+
+        $(document).ready(function() {
+            // 预选择问卷（如果有传参）
+            const urlParams = new URLSearchParams(window.location.search);
+            const questionnaireId = urlParams.get('questionnaireId');
+            if (questionnaireId) {
+                $('#QuestionnaireId').val(questionnaireId);
+                loadQuestions(questionnaireId);
+            }
+
+            // 监听问卷变化
+            $('#QuestionnaireId').on('change', function() {
+                const selectedQuestionnaireId = $(this).val();
+                if (selectedQuestionnaireId) {
+                    loadQuestions(selectedQuestionnaireId);
+                } else {
+                    // 清空问题选项
+                    $('.condition-item select[name*=".QuestionId"]').html('<option value="">-- 选择问题 --</option>');
+                }
+            });
+        });
+
+        function addCondition() {
+            const condition = {
+                id: generateGuid(),
+                questionId: '',
+                conditionType: 'Equals',
+                expectedAnswer: '',
+                index: conditionIndex++
+            };
+            conditions.push(condition);
+            renderCondition(condition);
+            updateNoConditionsMessage();
+        }
+
+        function renderCondition(condition) {
+            const html = `
+                <div class="card mb-3 condition-item" data-condition-id="${condition.id}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">条件 ${condition.index + 1}</span>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCondition('${condition.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">问题</label>
+                                <select class="form-select question-select" name="Conditions[${condition.index}].QuestionId" 
+                                        onchange="updateCondition('${condition.id}', 'questionId', this.value); loadQuestionOptions(${condition.index}, this.value)" required>
+                                    <option value="">-- 选择问题 --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">条件类型</label>
+                                <select class="form-select" name="Conditions[${condition.index}].ConditionType" 
+                                        onchange="updateCondition('${condition.id}', 'conditionType', this.value)" required>
+                                    <option value="Equals" ${condition.conditionType === 'Equals' ? 'selected' : ''}>等于</option>
+                                    <option value="NotEquals" ${condition.conditionType === 'NotEquals' ? 'selected' : ''}>不等于</option>
+                                    <option value="Contains" ${condition.conditionType === 'Contains' ? 'selected' : ''}>包含</option>
+                                    <option value="NotContains" ${condition.conditionType === 'NotContains' ? 'selected' : ''}>不包含</option>
+                                    <option value="StartsWith" ${condition.conditionType === 'StartsWith' ? 'selected' : ''}>开始于</option>
+                                    <option value="EndsWith" ${condition.conditionType === 'EndsWith' ? 'selected' : ''}>结束于</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label">预期答案</label>
+                            <div id="expected-answer-container-${condition.index}">
+                                <input type="text" class="form-control" name="Conditions[${condition.index}].ExpectedAnswer" 
+                                       value="${condition.expectedAnswer}" 
+                                       onchange="updateCondition('${condition.id}', 'expectedAnswer', this.value)" 
+                                       placeholder="请输入预期答案" required />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            $('#conditionsList').append(html);
+            
+            // 立即加载问题选项
+            const selectedQuestionnaireId = $('#QuestionnaireId').val();
+            if (selectedQuestionnaireId) {
+                loadQuestionsForCondition(condition.index, selectedQuestionnaireId, condition.questionId);
+            }
+        }
+
+        function updateCondition(id, field, value) {
+            const condition = conditions.find(c => c.id === id);
+            if (condition) {
+                condition[field] = value;
+            }
+        }
+
+        function removeCondition(id) {
+            const index = conditions.findIndex(c => c.id === id);
+            if (index > -1) {
+                conditions.splice(index, 1);
+                $(`.condition-item[data-condition-id="${id}"]`).remove();
+                
+                // 重新索引剩余条件
+                conditions.forEach((condition, newIndex) => {
+                    condition.index = newIndex;
+                    const conditionElement = $(`.condition-item[data-condition-id="${condition.id}"]`);
+                    conditionElement.find('select[name*=".QuestionId"]').attr('name', `Conditions[${newIndex}].QuestionId`);
+                    conditionElement.find('select[name*=".ConditionType"]').attr('name', `Conditions[${newIndex}].ConditionType`);
+                    conditionElement.find('input[name*=".ExpectedAnswer"]').attr('name', `Conditions[${newIndex}].ExpectedAnswer`);
+                    conditionElement.find('.card-header span').text(`条件 ${newIndex + 1}`);
+                });
+                
+                updateNoConditionsMessage();
+            }
+        }
+
+        function updateNoConditionsMessage() {
+            if (conditions.length === 0) {
+                $('#noConditions').show();
+            } else {
+                $('#noConditions').hide();
+            }
+        }
+
+        function loadQuestions(questionnaireId) {
+            if (!questionnaireId) return;
+            
+            $.get(`/api/Questions/GetByQuestionnaire/${questionnaireId}`, function(questions) {
+                // 更新所有条件的问题选项
+                $('.condition-item').each(function(index) {
+                    const select = $(this).find('select[name*=".QuestionId"]');
+                    const currentValue = select.val();
+                    
+                    let options = '<option value="">-- 选择问题 --</option>';
+                    questions.forEach(q => {
+                        options += `<option value="${q.id}" ${q.id === currentValue ? 'selected' : ''}>${q.text}</option>`;
+                    });
+                    
+                    select.html(options);
+                });
+            }).fail(function() {
+                console.error('Failed to load questions');
+            });
+        }
+
+         function loadQuestionsForCondition(conditionIndex, questionnaireId, selectedQuestionId) {
+             if (!questionnaireId) return;
+             
+             $.get(`/api/Questions/GetByQuestionnaire/${questionnaireId}`, function(questions) {
+                 const select = $(`select[name="Conditions[${conditionIndex}].QuestionId"]`);
+                 
+                 let options = '<option value="">-- 选择问题 --</option>';
+                 questions.forEach(q => {
+                     const selected = q.id === selectedQuestionId ? 'selected' : '';
+                     options += `<option value="${q.id}" ${selected}>${q.text}</option>`;
+                 });
+                 
+                 select.html(options);
+             }).fail(function() {
+                 console.error('Failed to load questions for condition');
+                 const select = $(`select[name="Conditions[${conditionIndex}].QuestionId"]`);
+                 select.html('<option value="">-- 加载失败 --</option>');
+             });
+         }
+
+         function loadQuestionOptions(conditionIndex, questionId) {
+             if (!questionId) {
+                 renderExpectedAnswer(conditionIndex, null);
+                 return;
+             }
+             
+             $.get(`/api/Questions/GetById/${questionId}`, function(question) {
+                 renderExpectedAnswer(conditionIndex, question);
+             }).fail(function() {
+                 console.error('Failed to load question details');
+                 renderExpectedAnswer(conditionIndex, null);
+             });
+         }
+
+         function renderExpectedAnswer(conditionIndex, question) {
+             const container = $(`#expected-answer-container-${conditionIndex}`);
+             if (!container.length) {
+                 // 创建容器如果不存在
+                 const parent = $(`input[name="Conditions[${conditionIndex}].ExpectedAnswer"]`).parent();
+                 parent.html(`<div id="expected-answer-container-${conditionIndex}"></div>`);
+             }
+             
+             const container2 = $(`#expected-answer-container-${conditionIndex}`);
+             container2.empty();
+             
+             if (!question) {
+                 container2.html(`
+                     <input type="text" class="form-control" name="Conditions[${conditionIndex}].ExpectedAnswer" 
+                            onchange="updateConditionByIndex(${conditionIndex}, 'expectedAnswer', this.value)" 
+                            placeholder="请输入预期答案" required />
+                 `);
+                 return;
+             }
+             
+             let html = '';
+             const name = `Conditions[${conditionIndex}].ExpectedAnswer`;
+             
+             switch (question.type) {
+                 case 0: // Radio
+                     html = renderRadioOptions(name, question);
+                     break;
+                 case 1: // Checkbox
+                     html = renderCheckboxOptions(name, question);
+                     break;
+                 case 2: // Text
+                     html = renderTextarea(name);
+                     break;
+                 default:
+                     html = `<input type="text" class="form-control" name="${name}" 
+                                    onchange="updateConditionByIndex(${conditionIndex}, 'expectedAnswer', this.value)" 
+                                    placeholder="请输入预期答案" required />`;
+             }
+             
+             container2.html(html);
+             
+             // 绑定事件
+             container2.find('input, textarea, select').on('change', function() {
+                 updateConditionByIndex(conditionIndex, 'expectedAnswer', $(this).val());
+             });
+         }
+
+         function renderRadioOptions(name, question) {
+             try {
+                 const options = JSON.parse(question.optionsJson || '[]');
+                 let html = '<div class="form-check-group">';
+                 
+                 options.forEach((option, index) => {
+                     const optionText = typeof option === 'string' ? option : option.text || option.value || '';
+                     const optionValue = typeof option === 'string' ? option : option.value || optionText;
+                     
+                     html += `
+                         <div class="form-check">
+                             <input class="form-check-input" type="radio" name="${name}" 
+                                    id="${name}_${index}" value="${optionValue}" required>
+                             <label class="form-check-label" for="${name}_${index}">${optionText}</label>
+                         </div>
+                     `;
+                 });
+                 
+                 html += '</div>';
+                 return html;
+             } catch (e) {
+                 console.error('Failed to parse radio options:', e);
+                 return `<input type="text" class="form-control" name="${name}" 
+                                onchange="updateConditionByIndex(${conditionIndex}, 'expectedAnswer', this.value)" 
+                                placeholder="请输入预期答案" required />`;
+             }
+         }
+
+         function renderCheckboxOptions(name, question) {
+             try {
+                 const options = JSON.parse(question.optionsJson || '[]');
+                 let html = '<div class="form-check-group">';
+                 
+                 options.forEach((option, index) => {
+                     const optionText = typeof option === 'string' ? option : option.text || option.value || '';
+                     const optionValue = typeof option === 'string' ? option : option.value || optionText;
+                     
+                     html += `
+                         <div class="form-check">
+                             <input class="form-check-input" type="checkbox" name="${name}_checkbox" 
+                                    id="${name}_${index}" value="${optionValue}" data-checkbox-group="${name}"
+                                    onchange="updateCheckboxValues('${name}', this)">
+                             <label class="form-check-label" for="${name}_${index}">${optionText}</label>
+                         </div>
+                     `;
+                 });
+                 
+                 // 添加隐藏字段来存储所有选中的值（JArray格式）
+                 html += `<input type="hidden" name="${name}" id="${name}_hidden" value="[]" />`;
+                 html += '</div>';
+                 return html;
+             } catch (e) {
+                 console.error('Failed to parse checkbox options:', e);
+                 return `<input type="text" class="form-control" name="${name}" 
+                                 onchange="updateConditionByIndex(${conditionIndex}, 'expectedAnswer', this.value)" 
+                                 placeholder="请输入预期答案" required />`;
+             }
+         }
+
+        function updateCheckboxValues(groupName, checkbox) {
+            const checkboxes = document.querySelectorAll(`[data-checkbox-group="${groupName}"]:checked`);
+            const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+            const hiddenField = document.getElementById(`${groupName}_hidden`);
+            if (hiddenField) {
+                // 将数组转换为JArray字符串格式
+                hiddenField.value = JSON.stringify(selectedValues);
+                // 同时更新对应的条件对象
+                const conditionIndex = parseInt(groupName.match(/\[(\d+)\]/)[1]);
+                updateConditionByIndex(conditionIndex, 'expectedAnswer', hiddenField.value);
+            }
+        }
+
+         function renderTextarea(name) {
+             return `<textarea class="form-control" name="${name}" 
+                             onchange="updateConditionByIndex(${conditionIndex}, 'expectedAnswer', this.value)" 
+                             placeholder="请输入预期答案" rows="3" required></textarea>`;
+         }
+
+         function updateConditionByIndex(index, field, value) {
+             const condition = conditions.find(c => c.index === index);
+             if (condition) {
+                 condition[field] = value;
+             }
+         }
+
+        function generateGuid() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // 表单提交前验证
+        $('#templateForm').on('submit', function(e) {
+            if (conditions.length > 0) {
+                // 验证所有条件都已填写，并转换expectedAnswer为JArray字符串
+                let isValid = true;
+                
+                conditions.forEach(condition => {
+                    if (!condition.questionId || !condition.expectedAnswer) {
+                        isValid = false;
+                        return;
+                    }
+                    
+                    // 确保expectedAnswer是JArray字符串格式
+                    try {
+                        // 如果已经是有效的JSON数组字符串，则直接使用
+                        const parsed = JSON.parse(condition.expectedAnswer);
+                        if (!Array.isArray(parsed)) {
+                            // 如果不是数组，转换为单元素数组
+                            condition.expectedAnswer = JSON.stringify([condition.expectedAnswer]);
+                        }
+                    } catch (error) {
+                        // 如果不是有效的JSON，转换为单元素数组
+                        condition.expectedAnswer = JSON.stringify([condition.expectedAnswer]);
+                    }
+                    
+                    // 更新表单中的值（包括input和textarea）
+                    const expectedAnswerInput = $(`input[name="Conditions[${condition.index}].ExpectedAnswer"]`);
+                    const expectedAnswerTextarea = $(`textarea[name="Conditions[${condition.index}].ExpectedAnswer"]`);
+                    
+                    if (expectedAnswerInput.length) {
+                        expectedAnswerInput.val(condition.expectedAnswer);
+                    } else if (expectedAnswerTextarea.length) {
+                        expectedAnswerTextarea.val(condition.expectedAnswer);
+                    }
+                });
+                
+                if (!isValid) {
+                    e.preventDefault();
+                    alert('请确保所有条件都已正确填写！');
+                    return false;
+                }
+            }
+        });
+    </script>
+}
