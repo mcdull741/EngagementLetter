@@ -3,10 +3,13 @@ using EngagementLetter.Data;
 using EngagementLetter.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace EngagementLetter.Controllers
 {
+    [Route("api/[controller]")]
+    [ApiController]
     public class QuestionsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -97,6 +100,55 @@ namespace EngagementLetter.Controllers
                 return Json(new { success = true, question });
             }
             return PartialView(question);
+        }
+
+        [HttpGet("GetByQuestionnaire/{questionnaireId}")]
+        public async Task<IActionResult> GetByQuestionnaire(string questionnaireId)
+        {
+            if (string.IsNullOrEmpty(questionnaireId))
+            {
+                return BadRequest("问卷ID不能为空");
+            }
+
+            var questions = await _context.Questions
+                .Where(q => q.QuestionnaireId == questionnaireId)
+                .OrderBy(q => q.SortOrder)
+                .Select(q => new
+                {
+                    id = q.Id,
+                    text = q.Content,
+                    type = q.Type
+                })
+                .ToListAsync();
+
+            return Json(questions);
+        }
+
+        [HttpGet("GetById/{id}")]
+        public async Task<IActionResult> GetById(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return BadRequest("问题ID不能为空");
+            }
+
+            var question = await _context.Questions
+                .Where(q => q.Id == id)
+                .Select(q => new
+                {
+                    id = q.Id,
+                    text = q.Content,
+                    type = q.Type,
+                    optionsJson = q.OptionsJson
+                })
+                .FirstOrDefaultAsync();
+
+            if (question == null)
+            {
+                return NotFound();
+            }
+
+            return Json(question);
         }
 
         private bool QuestionExists(string id)

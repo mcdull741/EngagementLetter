@@ -43,7 +43,7 @@ namespace EngagementLetter.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.ConditionType).HasMaxLength(50).HasDefaultValue("Equals");
                 entity.Property(e => e.LogicOperator).HasMaxLength(10).HasDefaultValue("AND");
-                entity.Property(e => e.Description).HasMaxLength(500);
+
                 entity.Property(e => e.OrderIndex).HasDefaultValue(0);
 
                 entity.HasIndex(e => e.TemplateId);

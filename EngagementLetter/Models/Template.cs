@@ -51,7 +51,7 @@ namespace EngagementLetter.Models
         /// 创建人用户名
         /// </summary>
         [StringLength(255)]
-        public string CreatedBy { get; set; }
+        public string? CreatedBy { get; set; }
 
         /// <summary>
         /// 创建时间
@@ -63,7 +63,7 @@ namespace EngagementLetter.Models
         /// 最后修改人用户名
         /// </summary>
         [StringLength(255)]
-        public string UpdatedBy { get; set; }
+        public string? UpdatedBy { get; set; }
 
         /// <summary>
         /// 最后修改时间

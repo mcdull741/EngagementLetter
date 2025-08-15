@@ -1,0 +1,319 @@
+@model EngagementLetter.Controllers.TemplateIndexViewModel
+
+@{
+    ViewData["Title"] = "Word模板管理";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Word模板管理 - 为问卷配置Word文档模板</h1>
+        <div>
+            <button type="button" class="btn btn-primary me-2" onclick="showQuestionnaireModal()">
+                <i class="fas fa-upload me-1"></i>上传模板
+            </button>
+            <button class="btn btn-outline-secondary" disabled>
+                <i class="fas fa-cog me-1"></i>管理模板
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左侧问卷筛选区 -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">问卷筛选</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">选择问卷</label>
+                        <select class="form-select" id="questionnaireFilter" onchange="filterTemplates()">
+                            <option value="">全部问卷</option>
+                            @foreach (var questionnaire in Model.Questionnaires)
+                            {
+                                <option value="@questionnaire.Id" selected="@(Model.SelectedQuestionnaireId == questionnaire.Id)">
+                                    @questionnaire.Title
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="conditionalOnly" 
+                               onchange="filterTemplates()" @(Model.ShowConditionalOnly ? "checked" : "")>
+                        <label class="form-check-label" for="conditionalOnly">
+                            显示有条件模板
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧内容区 -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1 me-3">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" class="form-control" id="searchInput" 
+                                   placeholder="搜索模板..." value="@Model.SearchQuery" 
+                                   onkeyup="filterTemplates()">
+                        </div>
+                    </div>
+                    <div>
+                        <select class="form-select" id="sortBy" onchange="filterTemplates()">
+                            <option value="createdDate" selected="@(Model.SortBy == "createdDate")">创建时间</option>
+                            <option value="name" selected="@(Model.SortBy == "name")">模板名称</option>
+                            <option value="priority" selected="@(Model.SortBy == "priority")">优先级</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    @if (Model.Templates.Any())
+                    {
+                        <div class="row" id="templateList">
+                            @foreach (var template in Model.Templates)
+                            {
+                                <div class="col-md-6 col-lg-4 mb-4 template-card" 
+                                     data-questionnaire="@template.QuestionnaireId"
+                                     data-conditional="@(template.Conditions.Any())">
+                                    <div class="card h-100 shadow-sm">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="fas fa-file-word text-primary me-2" style="font-size: 1.5rem;"></i>
+                                                    <h6 class="card-title mb-0 text-truncate" title="@template.Name">
+                                                        @template.Name
+                                                    </h6>
+                                                </div>
+                                                <span class="badge bg-@(GetPriorityBadge(template.Priority))" title="优先级: @template.Priority">
+                                                    @template.Priority
+                                                </span>
+                                            </div>
+
+                                            <p class="text-muted small mb-2">
+                                                <i class="fas fa-clipboard-list me-1"></i>
+                                                @template.Questionnaire?.Title
+                                            </p>
+
+                                            <div class="mb-3">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-filter me-1"></i>
+                                                    条件：@(template.Conditions.Count) 个
+                                                </small>
+                                                @if (template.Conditions.Any())
+                                                {
+                                                    <button class="btn btn-sm btn-link p-0 ms-2" 
+                                                            onclick="showConditionsModal('@template.Id')">
+                                                        查看详情
+                                                    </button>
+                                                }
+                                            </div>
+
+                                            <div class="text-muted small">
+                                                <i class="fas fa-user me-1"></i>
+                                                @(template.CreatedBy ?? "系统")
+                                                <br>
+                                                <i class="fas fa-clock me-1"></i>
+                                                @template.CreatedDate.ToString("yyyy-MM-dd HH:mm")
+                                            </div>
+                                        </div>
+
+                                        <div class="card-footer bg-transparent">
+                                            <div class="d-flex justify-content-between">
+                                                <a href="@Url.Action("Edit", "Templates", new { id = template.Id })" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-edit me-1"></i>编辑
+                                                </a>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        onclick="deleteTemplate('@template.Id', '@template.Name')">
+                                                    <i class="fas fa-trash me-1"></i>删除
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="d-flex justify-content-center mt-4">
+                            <nav>
+                                <ul class="pagination">
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#" tabindex="-1">上一页</a>
+                                    </li>
+                                    <li class="page-item active">
+                                        <a class="page-link" href="#">1</a>
+                                    </li>
+                                    <li class="page-item disabled">
+                                        <a class="page-link" href="#">下一页</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">暂无模板</h5>
+                            <p class="text-muted">请上传您的第一个Word模板</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 问卷选择模态框 -->
+<div class="modal fade" id="questionnaireModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">选择问卷</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">请选择一个问卷，为该问卷上传模板：</label>
+                    <select class="form-select" id="selectedQuestionnaire">
+                        <option value="">-- 请选择问卷 --</option>
+                        @foreach (var questionnaire in Model.Questionnaires)
+                        {
+                            <option value="@questionnaire.Id">@questionnaire.Title</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="proceedToUpload()">继续</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 条件详情模态框 -->
+<div class="modal fade" id="conditionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">模板条件详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="conditionsContent">
+                <!-- 动态加载条件内容 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @Html.AntiForgeryToken()
+    <script>
+        function showQuestionnaireModal() {
+            const modal = new bootstrap.Modal(document.getElementById('questionnaireModal'));
+            modal.show();
+        }
+
+        function proceedToUpload() {
+            const questionnaireId = document.getElementById('selectedQuestionnaire').value;
+            if (!questionnaireId) {
+                alert('请先选择一个问卷！');
+                return;
+            }
+            
+            // 跳转到Create页面，并传递问卷ID
+            window.location.href = `/Templates/Create?questionnaireId=${questionnaireId}`;
+        }
+
+        function filterTemplates() {
+            const questionnaireId = document.getElementById('questionnaireFilter').value;
+            const search = document.getElementById('searchInput').value;
+            const sortBy = document.getElementById('sortBy').value;
+            const conditionalOnly = document.getElementById('conditionalOnly').checked;
+
+            const url = new URL(window.location);
+            if (questionnaireId) url.searchParams.set('questionnaireId', questionnaireId);
+            else url.searchParams.delete('questionnaireId');
+            
+            if (search) url.searchParams.set('search', search);
+            else url.searchParams.delete('search');
+            
+            if (sortBy) url.searchParams.set('sortBy', sortBy);
+            else url.searchParams.delete('sortBy');
+            
+            url.searchParams.set('showConditionalOnly', conditionalOnly);
+            
+            window.location = url;
+        }
+
+        function showConditionsModal(templateId) {
+            fetch(`/Templates/Details/${templateId}`)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('conditionsContent').innerHTML = html;
+                    new bootstrap.Modal(document.getElementById('conditionsModal')).show();
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function deleteTemplate(id, name) {
+            if (confirm(`确定要删除模板 "${name}" 吗？此操作不可恢复。`)) {
+                const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                if (!token) {
+                    alert('安全验证失败，请刷新页面重试');
+                    return;
+                }
+                
+                fetch(`/Templates/Delete/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': token,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('删除失败');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('删除失败');
+                });
+            }
+        }
+
+        // 回车键搜索
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                filterTemplates();
+            }
+        });
+    </script>
+}
+
+@functions {
+    string GetPriorityBadge(int priority)
+    {
+        return priority switch
+        {
+            >= 90 => "danger",
+            >= 75 => "warning",
+            >= 50 => "info",
+            >= 25 => "secondary",
+            _ => "light"
+        };
+    }
+}

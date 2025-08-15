@@ -68,12 +68,6 @@ namespace EngagementLetter.Models
         public int OrderIndex { get; set; } = 0;
 
         /// <summary>
-        /// 条件描述（便于管理员理解）
-        /// </summary>
-        [StringLength(500)]
-        public string Description { get; set; }
-
-        /// <summary>
         /// 获取条件显示文本
         /// </summary>
         [NotMapped]
