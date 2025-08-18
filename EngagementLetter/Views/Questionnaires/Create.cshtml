@@ -258,10 +258,16 @@
                                     // 保存到本地数组
                                     if (currentEditingQuestionIndex === -1) {
                                         // 添加新问题
-                                        questions.push(questionData);
+                                        questions.push({
+                                            ...questionData,
+                                            SortOrder: questions.length
+                                        });
                                     } else {
                                         // 更新现有问题
-                                        questions[currentEditingQuestionIndex] = questionData;
+                                        questions[currentEditingQuestionIndex] = {
+                                            ...questionData,
+                                            SortOrder: questions[currentEditingQuestionIndex].SortOrder !== undefined ? questions[currentEditingQuestionIndex].SortOrder : currentEditingQuestionIndex
+                                        };
                                     }
 
                                     // 更新隐藏字段值
@@ -280,12 +286,13 @@
                                     questions.push({
                                         Content: questionData.Content,
                                         Type: questionData.Type,
-                                        OptionsJson: questionData.OptionsJson
+                                        OptionsJson: questionData.OptionsJson,
+                                        SortOrder: questions.length
                                     });
-
+                                
                                     // 更新隐藏字段值
                                     document.getElementById('questionsJson').value = JSON.stringify(questions);
-
+                                
                                     // 更新问题列表UI
                                     renderQuestionsList();
                                 }
@@ -343,6 +350,12 @@
                                     if (index > 0) {
                                         // 交换位置
                                         [questions[index], questions[index - 1]] = [questions[index - 1], questions[index]];
+                                        
+                                        // 更新SortOrder
+                                        questions.forEach((q, i) => {
+                                            q.SortOrder = i;
+                                        });
+                                        
                                         // 更新JSON和UI
                                         document.getElementById('questionsJson').value = JSON.stringify(questions);
                                         renderQuestionsList();
@@ -354,6 +367,12 @@
                                     if (index < questions.length - 1) {
                                         // 交换位置
                                         [questions[index], questions[index + 1]] = [questions[index + 1], questions[index]];
+                                        
+                                        // 更新SortOrder
+                                        questions.forEach((q, i) => {
+                                            q.SortOrder = i;
+                                        });
+                                        
                                         // 更新JSON和UI
                                         document.getElementById('questionsJson').value = JSON.stringify(questions);
                                         renderQuestionsList();

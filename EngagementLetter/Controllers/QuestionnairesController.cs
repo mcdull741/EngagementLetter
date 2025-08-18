@@ -121,13 +121,16 @@ namespace EngagementLetter.Controllers
                         .ExecuteUpdateAsync(q => q.SetProperty(q => q.Status, QuestionnaireStatus.Archived));
                 }
 
+                // 处理问题添加
                 if (!string.IsNullOrEmpty(QuestionsJson))
                 {
                     var questions = JsonConvert.DeserializeObject<List<Question>>(QuestionsJson);
-                    foreach (var question in questions)
+                    for (int i = 0; i < questions.Count; i++)
                     {
+                        var question = questions[i];
                         question.QuestionnaireId = questionnaire.Id;
                         question.Id = Guid.NewGuid().ToString();
+                        question.SortOrder = question.SortOrder != 0 ? question.SortOrder : i; // 修复类型转换问题
                         if(question.Type == QuestionType.Text)
                         {
                             question.OptionsJson = "[]";
