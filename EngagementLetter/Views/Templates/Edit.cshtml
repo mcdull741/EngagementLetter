@@ -1,18 +1,20 @@
-@model EngagementLetter.Controllers.TemplateCreateViewModel
+@model EngagementLetter.Controllers.TemplateEditViewModel
 
 @{
-    ViewData["Title"] = "上传模板";
+    ViewData["Title"] = "编辑模板";
 }
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0">上传模板</h1>
+        <h1 class="h3 mb-0">编辑模板</h1>
         <a href="/Templates" class="btn btn-secondary">
             <i class="fas fa-arrow-left me-1"></i>返回列表
         </a>
     </div>
 
-    <form asp-action="Create" method="post" enctype="multipart/form-data" id="templateForm">
+    <form asp-action="Edit" method="post" enctype="multipart/form-data" id="templateForm">
+        <input type="hidden" asp-for="Id" />
+        
         <div class="row">
             <div class="col-md-8">
                 <div class="card">
@@ -36,23 +38,9 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label asp-for="QuestionnaireId" class="form-label">关联问卷 <span class="text-danger">*</span></label>
-                                    @{
-                                        var urlParams = Context.Request.Query["questionnaireId"];
-                                        var hasQuestionnaireId = !string.IsNullOrEmpty(urlParams);
-                                    }
-                                    @if (hasQuestionnaireId)
-                                    {
-                                        <input type="hidden" asp-for="QuestionnaireId" />
-                                        <select class="form-select" disabled>
-                                            <option selected>@Model.Questionnaires.FirstOrDefault(q => q.Value == urlParams)?.Text</option>
-                                        </select>
-                                    }
-                                    else
-                                    {
-                                        <select asp-for="QuestionnaireId" class="form-select" asp-items="Model.Questionnaires">
-                                            <option value="">-- 请选择问卷 --</option>
-                                        </select>
-                                    }
+                                    <select asp-for="QuestionnaireId" class="form-select" asp-items="Model.Questionnaires">
+                                        <option value="">-- 请选择问卷 --</option>
+                                    </select>
                                     <span asp-validation-for="QuestionnaireId" class="text-danger"></span>
                                 </div>
                             </div>
@@ -77,10 +65,26 @@
                         </div>
 
                         <div class="mb-3">
-                            <label asp-for="TemplateFile" class="form-label">模板文件 <span class="text-danger">*</span></label>
+                            <label asp-for="TemplateFile" class="form-label">模板文件（可选）</label>
                             <input asp-for="TemplateFile" type="file" class="form-control" accept=".docx" />
-                            <div class="form-text">仅支持 .docx 格式的Word文档</div>
+                            <div class="form-text">仅支持 .docx 格式的Word文档，留空则保持原文件</div>
                             <span asp-validation-for="TemplateFile" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">当前文件</label>
+                            <div class="form-text">
+                                @if (!string.IsNullOrEmpty(Model.FileName))
+                                {
+                                    <i class="fas fa-file-word text-primary me-1"></i>
+                                    <a href="/Templates/Download/@Model.Id" target="_blank">@Model.FileName</a>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-exclamation-circle text-warning me-1"></i>
+                                    <span class="text-muted">无文件</span>
+                                }
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -90,18 +94,14 @@
                         <h5 class="card-title mb-0">模板条件设置</h5>
                     </div>
                     <div class="card-body">
-                        <div id="conditionsContainer">
-                            <iframe id="conditionsFrame" 
-                                    src="/Templates/_ConditionsFrame" 
-                                    width="100%" 
-                                    height="600" 
-                                    frameborder="0"
-                                    style="min-height: 600px;"></iframe>
-                        </div>
-                        <input type="hidden" id="conditionsJson" name="conditionsJson" />
-                        <div id="noQuestionnaireWarning" class="alert alert-warning" style="display: none;">
-                            <i class="fas fa-exclamation-triangle"></i> 请先选择关联问卷，然后才能设置模板条件。
-                        </div>
+                        <iframe id="conditionsFrame" 
+                                src="/Templates/_ConditionsFrame" 
+                                width="100%" 
+                                height="400" 
+                                frameborder="0"
+                                style="min-height: 400px;"></iframe>
+                        <input type="hidden" id="conditionsData" name="ConditionsData" />
+                        <input type="hidden" id="originalConditions" value='@Html.Raw(Json.Serialize(Model.Conditions))' />
                     </div>
                 </div>
             </div>
@@ -114,7 +114,7 @@
                     <div class="card-body">
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i>保存模板
+                                <i class="fas fa-save me-1"></i>保存修改
                             </button>
                             <a href="/Templates" class="btn btn-secondary">
                                 <i class="fas fa-times me-1"></i>取消
@@ -135,7 +135,7 @@
                             </li>
                             <li class="mb-2">
                                 <i class="fas fa-exclamation-triangle text-warning me-1"></i>
-                                请确保模板文件格式正确，避免上传损坏的文件
+                                如果不上传新文件，将保留原有的模板文件
                             </li>
                             <li class="mb-2">
                                 <i class="fas fa-lightbulb text-success me-1"></i>
@@ -156,41 +156,20 @@
         let conditionsFrameLoaded = false;
 
         $(document).ready(function() {
-            // 预选择问卷（如果有传参）
-            const urlParams = new URLSearchParams(window.location.search);
-            const questionnaireId = urlParams.get('questionnaireId');
-            if (questionnaireId) {
-                $('#QuestionnaireId').val(questionnaireId);
-            }
-            
-            // 初始化条件区域显示状态
-            const initialQuestionnaireId = $('#QuestionnaireId').val();
-            if (initialQuestionnaireId) {
-                $('#conditionsContainer').show();
-                $('#noQuestionnaireWarning').hide();
-            } else {
-                $('#conditionsContainer').hide();
-                $('#noQuestionnaireWarning').show();
-            }
+            // 加载原始条件数据
+            const originalConditions = JSON.parse($('#originalConditions').val() || '[]');
+            conditionsData = originalConditions || [];
 
             // 监听问卷变化
             $('#QuestionnaireId').on('change', function() {
                 const selectedQuestionnaireId = $(this).val();
-                if (selectedQuestionnaireId) {
-                    $('#conditionsContainer').show();
-                    $('#noQuestionnaireWarning').hide();
-                    
-                    if (conditionsFrameLoaded) {
-                        const frame = document.getElementById('conditionsFrame');
-                        frame.contentWindow.postMessage({
-                            type: 'setQuestionnaireId',
-                            questionnaireId: selectedQuestionnaireId,
-                            conditions: conditionsData
-                        }, '*');
-                    }
-                } else {
-                    $('#conditionsContainer').hide();
-                    $('#noQuestionnaireWarning').show();
+                if (selectedQuestionnaireId && conditionsFrameLoaded) {
+                    const frame = document.getElementById('conditionsFrame');
+                    frame.contentWindow.postMessage({
+                        type: 'setQuestionnaireId',
+                        questionnaireId: selectedQuestionnaireId,
+                        conditions: conditionsData
+                    }, '*');
                 }
             });
 
@@ -200,21 +179,16 @@
                     conditionsFrameLoaded = true;
                     const selectedQuestionnaireId = $('#QuestionnaireId').val();
                     if (selectedQuestionnaireId) {
-                        $('#conditionsContainer').show();
-                        $('#noQuestionnaireWarning').hide();
                         const frame = document.getElementById('conditionsFrame');
                         frame.contentWindow.postMessage({
                             type: 'setQuestionnaireId',
                             questionnaireId: selectedQuestionnaireId,
                             conditions: conditionsData
                         }, '*');
-                    } else {
-                        $('#conditionsContainer').hide();
-                        $('#noQuestionnaireWarning').show();
                     }
                 } else if (event.data.type === 'conditionsData') {
                     conditionsData = event.data.conditions;
-                    $('#conditionsJson').val(JSON.stringify(conditionsData));
+                    $('#conditionsData').val(JSON.stringify(conditionsData));
                 }
             });
 
@@ -244,7 +218,7 @@
             // 条件验证现在由iframe内部处理
             // 这里只需要确保conditionsData已正确设置
             if (conditionsData && conditionsData.length > 0) {
-                $('#conditionsJson').val(JSON.stringify(conditionsData));
+                $('#conditionsData').val(JSON.stringify(conditionsData));
             }
         });
     </script>

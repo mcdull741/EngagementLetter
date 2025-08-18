@@ -1,0 +1,428 @@
+@model dynamic
+
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCondition()" style="display: block !important; visibility: visible !important;">
+                <i class="fas fa-plus me-1"></i>添加条件
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="conditionsList">
+            <!-- 条件将动态添加到这里 -->
+        </div>
+        <div id="noConditions" class="text-center text-muted py-4">
+            <i class="fas fa-filter fa-2x mb-2"></i>
+            <p>暂无模板条件，点击"添加条件"按钮创建</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let conditionIndex = 0;
+    const conditions = [];
+    let questionnaireId = null;
+
+    // 初始化函数
+        function initializeConditions(initialConditions = [], selectedQuestionnaireId = null) {
+            questionnaireId = selectedQuestionnaireId;
+            conditions.length = 0;
+            conditionIndex = 0;
+            
+            // 清空现有条件显示
+            $('#conditionsList').empty();
+            
+            if (initialConditions && initialConditions.length > 0) {
+                initialConditions.forEach((cond, index) => {
+                    const condition = {
+                        id: cond.id || generateGuid(),
+                        questionId: cond.QuestionId || cond.questionId || '',
+                        conditionType: cond.ConditionType || cond.conditionType || 'Equals',
+                        expectedAnswer: cond.ExpectedAnswer || cond.expectedAnswer || '',
+                        index: index
+                    };
+                    conditionIndex = index + 1;
+                    conditions.push(condition);
+                    renderCondition(condition);
+                });
+            }
+            
+            updateNoConditionsMessage();
+            
+            // 如果提供了问卷ID，加载问题
+            if (questionnaireId) {
+                loadQuestions(questionnaireId);
+            }
+        }
+
+    // 获取所有条件数据
+        function getAllConditions() {
+            return conditions.map(condition => ({
+                QuestionId: condition.questionId,
+                ConditionType: condition.conditionType,
+                ExpectedAnswer: condition.expectedAnswer,
+                OrderIndex: condition.index
+            }));
+        }
+
+    // 通知父页面数据已变更
+    function notifyParentDataChanged() {
+        if (window.parent !== window) {
+            window.parent.postMessage({
+                type: 'conditionsData',
+                conditions: getAllConditions()
+            }, '*');
+        }
+    }
+
+    function addCondition() {
+        const condition = {
+            id: generateGuid(),
+            questionId: '',
+            conditionType: 'Equals',
+            expectedAnswer: '',
+            index: conditionIndex++
+        };
+        conditions.push(condition);
+        renderCondition(condition);
+        updateNoConditionsMessage();
+        
+        // 通知父页面数据已变更
+        notifyParentDataChanged();
+    }
+
+    function renderCondition(condition) {
+        const html = `
+            <div class="card mb-3 condition-item" data-condition-id="${condition.id}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">条件 ${condition.index + 1}</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCondition('${condition.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">问题</label>
+                            <select class="form-select question-select" 
+                                    onchange="updateCondition('${condition.id}', 'questionId', this.value); loadQuestionOptions(${condition.index}, this.value)" required>
+                                <option value="">-- 选择问题 --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">条件类型</label>
+                            <select class="form-select" 
+                                    onchange="updateCondition('${condition.id}', 'conditionType', this.value)" required>
+                                <option value="Equals" ${condition.conditionType === 'Equals' ? 'selected' : ''}>等于</option>
+                                <option value="NotEquals" ${condition.conditionType === 'NotEquals' ? 'selected' : ''}>不等于</option>
+                                <option value="Contains" ${condition.conditionType === 'Contains' ? 'selected' : ''}>包含</option>
+                                <option value="NotContains" ${condition.conditionType === 'NotContains' ? 'selected' : ''}>不包含</option>
+                                <option value="StartsWith" ${condition.conditionType === 'StartsWith' ? 'selected' : ''}>开始于</option>
+                                <option value="EndsWith" ${condition.conditionType === 'EndsWith' ? 'selected' : ''}>结束于</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">预期答案</label>
+                        <div id="expected-answer-container-${condition.index}">
+                            <!-- 预期答案将通过JavaScript动态渲染 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        $('#conditionsList').append(html);
+        
+        // 如果问卷ID已设置，加载问题选项
+        if (questionnaireId) {
+            loadQuestionsForCondition(condition.index, questionnaireId, condition.questionId);
+        }
+        
+        // 如果问题已选择，加载问题详情以渲染预期答案
+        if (condition.questionId && questionnaireId) {
+            setTimeout(() => {
+                loadQuestionOptions(condition.index, condition.questionId);
+            }, 100);
+        }
+    }
+
+    function updateCondition(id, field, value) {
+        const condition = conditions.find(c => c.id === id);
+        if (condition) {
+            condition[field] = value;
+            notifyParentDataChanged();
+        }
+    }
+
+    function removeCondition(id) {
+        const index = conditions.findIndex(c => c.id === id);
+        if (index > -1) {
+            conditions.splice(index, 1);
+            $(`.condition-item[data-condition-id="${id}"]`).remove();
+            
+            // 重新索引剩余条件
+            conditions.forEach((condition, newIndex) => {
+                condition.index = newIndex;
+                const conditionElement = $(`.condition-item[data-condition-id="${condition.id}"]`);
+                conditionElement.find('.card-header span').text(`条件 ${newIndex + 1}`);
+            });
+            
+            updateNoConditionsMessage();
+            notifyParentDataChanged();
+        }
+    }
+
+    function updateNoConditionsMessage() {
+        if (conditions.length === 0) {
+            $('#noConditions').show();
+        } else {
+            $('#noConditions').hide();
+        }
+    }
+
+    function loadQuestions(questionnaireId) {
+        if (!questionnaireId) return;
+        
+        $.get(`/api/Questions/GetByQuestionnaire/${questionnaireId}`, function(questions) {
+            // 更新所有条件的问题选项
+            $('.condition-item').each(function(index) {
+                const select = $(this).find('.question-select');
+                const condition = conditions[index];
+                const currentValue = condition ? condition.questionId : '';
+                
+                let options = '<option value="">-- 选择问题 --</option>';
+                questions.forEach(q => {
+                    options += `<option value="${q.id}" ${q.id === currentValue ? 'selected' : ''}>${q.text}</option>`;
+                });
+                
+                select.html(options);
+            });
+        }).fail(function() {
+            console.error('Failed to load questions');
+        });
+    }
+
+    function loadQuestionsForCondition(conditionIndex, questionnaireId, selectedQuestionId) {
+        if (!questionnaireId) return;
+        
+        $.get(`/api/Questions/GetByQuestionnaire/${questionnaireId}`, function(questions) {
+            const select = $(`.condition-item:eq(${conditionIndex}) .question-select`);
+            const condition = conditions.find(c => c.index === conditionIndex);
+            
+            let options = '<option value="">-- 选择问题 --</option>';
+            questions.forEach(q => {
+                const selected = q.id === selectedQuestionId ? 'selected' : '';
+                options += `<option value="${q.id}" ${selected}>${q.text}</option>`;
+            });
+            
+            select.html(options);
+            
+            // 如果问题已选择，加载问题选项
+            if (selectedQuestionId) {
+                loadQuestionOptions(conditionIndex, selectedQuestionId);
+            }
+        }).fail(function() {
+            console.error('Failed to load questions for condition');
+            const select = $(`.condition-item:eq(${conditionIndex}) .question-select`);
+            select.html('<option value="">-- 加载失败 --</option>');
+        });
+    }
+
+    function loadQuestionOptions(conditionIndex, questionId) {
+        if (!questionId) {
+            renderExpectedAnswer(conditionIndex, null);
+            return;
+        }
+        
+        $.get(`/api/Questions/GetById/${questionId}`, function(question) {
+            renderExpectedAnswer(conditionIndex, question);
+        }).fail(function() {
+            console.error('Failed to load question details');
+            renderExpectedAnswer(conditionIndex, null);
+        });
+    }
+
+    function renderExpectedAnswer(conditionIndex, question) {
+        const container = $(`#expected-answer-container-${conditionIndex}`);
+        container.empty();
+        
+        if (!question) {
+            container.html(`
+                <input type="text" class="form-control" 
+                       onchange="updateExpectedAnswer(${conditionIndex}, JSON.stringify([this.value]))" 
+                       placeholder="请输入预期答案" required />
+            `);
+            return;
+        }
+        
+        let html = '';
+        
+        switch (question.type) {
+            case 0: // Radio
+                html = renderRadioOptions(conditionIndex, question);
+                break;
+            case 1: // Checkbox
+                html = renderCheckboxOptions(conditionIndex, question);
+                break;
+            case 2: // Text
+                html = renderTextarea(conditionIndex);
+                break;
+            default:
+                html = `<input type="text" class="form-control" 
+                               onchange="updateExpectedAnswer(${conditionIndex}, JSON.stringify([this.value]))" 
+                               placeholder="请输入预期答案" required />`;
+        }
+        
+        container.html(html);
+    }
+
+    function renderRadioOptions(conditionIndex, question) {
+        try {
+            const options = JSON.parse(question.optionsJson || '[]');
+            const condition = conditions.find(c => c.index === conditionIndex);
+            let selectedValue = '';
+            
+            if (condition && condition.expectedAnswer) {
+                try {
+                    const parsed = JSON.parse(condition.expectedAnswer);
+                    selectedValue = parsed && parsed.length > 0 ? parsed[0] : '';
+                } catch (e) {
+                    selectedValue = condition.expectedAnswer;
+                }
+            }
+            
+            let html = '<div class="form-check-group">';
+            
+            options.forEach((option, index) => {
+                const optionText = typeof option === 'string' ? option : option.text || option.value || '';
+                const optionValue = typeof option === 'string' ? option : option.value || optionText;
+                const isChecked = selectedValue === optionValue;
+                
+                html += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" 
+                               name="radio_${conditionIndex}" 
+                               id="radio_${conditionIndex}_${index}" 
+                               value="${optionValue}" 
+                               ${isChecked ? 'checked' : ''} 
+                               onchange="updateExpectedAnswer(${conditionIndex}, JSON.stringify([this.value]))" required>
+                        <label class="form-check-label" for="radio_${conditionIndex}_${index}">
+                            ${optionText}
+                        </label>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            return html;
+        } catch (e) {
+            return '<input type="text" class="form-control" onchange="updateExpectedAnswer(' + conditionIndex + ', JSON.stringify([this.value]))" placeholder="请输入预期答案" required />';
+        }
+    }
+
+    function renderCheckboxOptions(conditionIndex, question) {
+        try {
+            const options = JSON.parse(question.optionsJson || '[]');
+            const condition = conditions.find(c => c.index === conditionIndex);
+            let selectedValues = [];
+            
+            if (condition && condition.expectedAnswer) {
+                try {
+                    selectedValues = JSON.parse(condition.expectedAnswer);
+                } catch (e) {
+                    console.warn('Failed to parse expectedAnswer:', condition.expectedAnswer);
+                    selectedValues = [];
+                }
+            }
+            
+            let html = '<div class="form-check-group">';
+            
+            options.forEach((option, index) => {
+                const optionText = typeof option === 'string' ? option : option.text || option.value || '';
+                const optionValue = typeof option === 'string' ? option : option.value || optionText;
+                const isChecked = selectedValues.includes(optionValue);
+                
+                html += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               id="checkbox_${conditionIndex}_${index}" 
+                               value="${optionValue}" 
+                               ${isChecked ? 'checked' : ''} 
+                               onchange="updateCheckboxValues(${conditionIndex})">
+                        <label class="form-check-label" for="checkbox_${conditionIndex}_${index}">
+                            ${optionText}
+                        </label>
+                    </div>
+                `;
+            });
+            
+
+            
+            html += '</div>';
+            return html;
+        } catch (e) {
+            return '<input type="text" class="form-control" placeholder="请输入预期答案" required />';
+        }
+    }
+
+    function renderTextarea(conditionIndex) {
+        const condition = conditions.find(c => c.index === conditionIndex);
+        let initialValue = '';
+        
+        if (condition && condition.expectedAnswer) {
+            try {
+                const parsed = JSON.parse(condition.expectedAnswer);
+                initialValue = parsed && parsed.length > 0 ? parsed[0] : '';
+            } catch (e) {
+                initialValue = condition.expectedAnswer;
+            }
+        }
+        
+        return `
+            <textarea class="form-control" rows="3" 
+                      onchange="updateExpectedAnswer(${conditionIndex}, JSON.stringify([this.value]))" 
+                      placeholder="请输入预期答案" required>${initialValue}</textarea>
+        `;
+    }
+
+    function updateCheckboxValues(conditionIndex) {
+        const checkboxes = $(`#expected-answer-container-${conditionIndex}`).find('input[type="checkbox"]:checked');
+        const values = Array.from(checkboxes).map(cb => cb.value);
+        const jsonString = JSON.stringify(values);
+        
+        // 直接更新，不依赖隐藏字段
+        updateExpectedAnswer(conditionIndex, jsonString);
+    }
+
+    function updateExpectedAnswer(conditionIndex, value) {
+        const condition = conditions.find(c => c.index === conditionIndex);
+        if (condition) {
+            condition.expectedAnswer = value;
+            notifyParentDataChanged();
+        }
+    }
+
+    function generateGuid() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    function notifyParentDataChanged() {
+        window.parent.postMessage({
+            type: 'conditionsChanged',
+            conditions: getAllConditions()
+        }, '*');
+    }
+
+    // 监听来自父页面的消息
+    window.addEventListener('message', function(event) {
+        if (event.data.type === 'initializeConditions') {
+            initializeConditions(event.data.conditions, event.data.questionnaireId);
+        }
+    });
+</script>

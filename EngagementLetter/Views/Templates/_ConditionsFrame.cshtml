@@ -1,0 +1,78 @@
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>模板条件设置</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/font-awesome/css/all.min.css" />
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 0;
+            margin: 0;
+        }
+        .container-fluid {
+            padding: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        @await Html.PartialAsync("_TemplateConditions.cshtml", (object)Model)
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // 与父页面通信
+        $(document).ready(function() {
+            // 通知父页面iframe已加载完成
+            window.parent.postMessage({
+                type: 'conditionsFrameLoaded'
+            }, '*');
+
+            // 监听来自父页面的消息
+            window.addEventListener('message', function(event) {
+                if (event.data.type === 'setQuestionnaireId') {
+                    // 设置问卷ID并初始化条件
+                    const questionnaireId = event.data.questionnaireId;
+                    const conditions = event.data.conditions || [];
+                    
+                    if (window.initializeConditions) {
+                        window.initializeConditions(conditions, questionnaireId);
+                    }
+                }
+            });
+        });
+
+        // 监听表单变化，通知父页面
+        function notifyParentDataChanged() {
+            if (window.getAllConditions) {
+                const conditions = window.getAllConditions();
+                window.parent.postMessage({
+                    type: 'conditionsData',
+                    conditions: conditions
+                }, '*');
+            }
+        }
+
+        // 重写消息通知函数，确保数据同步
+        const originalNotifyParent = window.notifyParentDataChanged || function() {};
+        window.notifyParentDataChanged = function() {
+            if (window.getAllConditions) {
+                const conditions = window.getAllConditions();
+                window.parent.postMessage({
+                    type: 'conditionsData',
+                    conditions: conditions
+                }, '*');
+            }
+            originalNotifyParent();
+        };
+    </script>
+</body>
+</html>
