@@ -6,16 +6,20 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 
 namespace EngagementLetter.Controllers
 {
     public class EngLettersController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IWebHostEnvironment _environment;
 
-        public EngLettersController(ApplicationDbContext context)
+        public EngLettersController(ApplicationDbContext context, IWebHostEnvironment environment)
         {
             _context = context;
+            _environment = environment;
         }
 
         // GET: EngLetters
@@ -306,6 +310,116 @@ namespace EngagementLetter.Controllers
             {
                 return Json(new { success = false, message = "删除失败：" + ex.Message });
             }
+        }
+        // 导出报告
+        [HttpGet]
+        public async Task<IActionResult> ExportReport(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return NotFound();
+            }
+        
+            var engLetter = await _context.EngLetters
+                .Include(e => e.Questionnaire)
+                .Include(e => e.UserResponses)
+                    .ThenInclude(ur => ur.Question)
+                .FirstOrDefaultAsync(e => e.Id == id);
+        
+            if (engLetter == null)
+            {
+                return NotFound();
+            }
+        
+            // 获取关联的模板
+            var templates = await _context.Templates
+                .Include(t => t.Conditions)
+                    .ThenInclude(c => c.Question)
+                .Where(t => t.QuestionnaireId == engLetter.QuestionnaireId)
+                .OrderByDescending(t => t.Priority)
+                .ToListAsync();
+        
+            // 找到匹配的模板
+            Template? matchedTemplate = null;
+            foreach (var template in templates)
+            {
+                bool isMatch = true;
+                foreach (var condition in template.Conditions)
+                {
+                    var userResponse = engLetter.UserResponses
+                        .FirstOrDefault(ur => ur.QuestionId == condition.QuestionId);
+        
+                    if (userResponse == null)
+                    {
+                        isMatch = false;
+                        break;
+                    }
+        
+                    // 根据问题类型处理答案匹配
+                    var questionType = condition.Question?.Type;
+                    var expectedAnswer = condition.TextResponse;  // 修正属性名称
+                    var actualAnswer = userResponse.TextResponse;
+        
+                    if (questionType == QuestionType.CheckBox)
+                    {
+                        // 多选题处理
+                        try
+                        {
+                            var actualOptions = System.Text.Json.JsonSerializer.Deserialize<string[]>(actualAnswer ?? "[]") ?? Array.Empty<string>();
+                            var expectedOptions = System.Text.Json.JsonSerializer.Deserialize<string[]>(expectedAnswer ?? "[]") ?? Array.Empty<string>();
+                            
+                            // 检查是否包含所有期望的选项
+                            foreach (var expected in expectedOptions)
+                            {
+                                if (!actualOptions.Contains(expected))
+                                {
+                                    isMatch = false;
+                                    break;
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            isMatch = false;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        // 单选题和文本题处理
+                        if (actualAnswer != expectedAnswer)
+                        {
+                            isMatch = false;
+                            break;
+                        }
+                    }
+        
+                    if (!isMatch) break;
+                }
+        
+                if (isMatch)
+                {
+                    matchedTemplate = template;
+                    break;
+                }
+            }
+        
+            if (matchedTemplate == null || string.IsNullOrEmpty(matchedTemplate.TemplatePath))
+            {
+                return Json(new { success = false, message = "未找到匹配的模板或模板文件不存在" });
+            }
+        
+            // 检查模板文件是否存在
+            var filePath = Path.Combine(_environment.WebRootPath, "Templates", matchedTemplate.TemplatePath);
+            if (!System.IO.File.Exists(filePath))
+            {
+                return Json(new { success = false, message = "模板文件不存在" });
+            }
+        
+            // 返回文件下载
+            var fileStream = System.IO.File.OpenRead(filePath);
+            var fileName = $"{engLetter.Title}_{DateTime.Now:yyyyMMddHHmmss}.docx";
+            return File(fileStream, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", fileName);
         }
     }
 }
