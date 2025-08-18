@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -119,8 +120,21 @@ namespace EngagementLetter.Controllers
         // 在现有的Create POST方法中确保条件处理逻辑正确
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(TemplateCreateViewModel model)
+        public async Task<IActionResult> Create([FromForm] TemplateCreateViewModel model, [FromForm] string conditionsJson = null)
         {
+            // 如果传入了JSON格式的条件，反序列化
+            if (!string.IsNullOrEmpty(conditionsJson))
+            {
+                try
+                {
+                    model.Conditions = System.Text.Json.JsonSerializer.Deserialize<List<TemplateConditionCreateViewModel>>(conditionsJson);
+                }
+                catch (Exception)
+                {
+                    ModelState.AddModelError("Conditions", "条件格式不正确");
+                }
+            }
+
             if (ModelState.IsValid)
             {
                 try
@@ -164,15 +178,17 @@ namespace EngagementLetter.Controllers
                     // 保存条件（如果有）
                     if (model.Conditions != null && model.Conditions.Any())
                     {
-                        foreach (var conditionModel in model.Conditions)
+                        for (int i = 0; i < model.Conditions.Count; i++)
                         {
+                            var conditionModel = model.Conditions[i];
                             var condition = new TemplateCondition
                             {
                                 TemplateId = template.Id,
                                 QuestionId = conditionModel.QuestionId,
                                 QuestionnaireId = model.QuestionnaireId,
                                 ConditionType = conditionModel.ConditionType,
-                                TextResponse = conditionModel.ExpectedAnswer
+                                TextResponse = conditionModel.ExpectedAnswer,
+                                OrderIndex = conditionModel.OrderIndex ?? i
                             };
                             _context.TemplateConditions.Add(condition);
                         }
@@ -204,8 +220,200 @@ namespace EngagementLetter.Controllers
                 .Where(q => q.QuestionnaireId == questionnaireId)
                 .Select(q => new { id = q.Id, text = q.Content })
                 .ToListAsync();
-        
+
             return Json(questions);
+        }
+
+        // 下载模板文件
+        [HttpGet]
+        public async Task<IActionResult> Download(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return NotFound();
+            }
+
+            var template = await _context.Templates
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (template == null || string.IsNullOrEmpty(template.TemplatePath))
+            {
+                return NotFound();
+            }
+
+            var filePath = Path.Combine(_environment.WebRootPath, "Templates", template.TemplatePath);
+            if (!System.IO.File.Exists(filePath))
+            {
+                return NotFound();
+            }
+
+            var fileStream = System.IO.File.OpenRead(filePath);
+            return File(fileStream, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", template.Name + ".docx");
+        }
+
+        // GET: Templates/Edit/5
+        public async Task<IActionResult> Edit(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return NotFound();
+            }
+
+            var template = await _context.Templates
+                .Include(t => t.Conditions)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (template == null)
+            {
+                return NotFound();
+            }
+
+            var viewModel = new TemplateEditViewModel
+            {
+                Id = template.Id,
+                Name = template.Name,
+                Description = template.Description,
+                QuestionnaireId = template.QuestionnaireId,
+                Priority = template.Priority,
+                FileName = template.TemplatePath,
+                Conditions = template.Conditions?.Select(c => new TemplateConditionCreateViewModel
+                {
+                    QuestionId = c.QuestionId,
+                    ConditionType = c.ConditionType,
+                    ExpectedAnswer = c.TextResponse
+                }).ToList() ?? new List<TemplateConditionCreateViewModel>(),
+                Questionnaires = await _context.Questionnaires
+                    .Select(q => new SelectListItem { Value = q.Id.ToString(), Text = q.Title })
+                    .ToListAsync()
+            };
+
+            return View(viewModel);
+        }
+
+        // POST: Templates/Edit/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(string id, TemplateEditViewModel model, [FromForm] string ConditionsData = null)
+        {
+            if (id != model.Id)
+            {
+                return NotFound();
+            }
+
+            // 清除TemplateFile的验证错误，因为它是可选的
+            if (ModelState.ContainsKey("TemplateFile") || ModelState.ContainsKey("FileName"))
+            {
+                ModelState.Remove("TemplateFile");
+                ModelState.Remove("FileName");
+            }
+
+            // 解析条件数据
+            if (!string.IsNullOrEmpty(ConditionsData))
+            {
+                try
+                {
+                    var conditions = JsonSerializer.Deserialize<List<TemplateConditionCreateViewModel>>(ConditionsData);
+                    model.Conditions = conditions ?? new List<TemplateConditionCreateViewModel>();
+                }
+                catch (Exception ex)
+                {
+                    ModelState.AddModelError("ConditionsData", $"条件数据格式错误：{ex.Message}");
+                }
+            }
+            else
+            {
+                model.Conditions = new List<TemplateConditionCreateViewModel>();
+            }
+
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    var template = await _context.Templates
+                        .Include(t => t.Conditions)
+                        .FirstOrDefaultAsync(t => t.Id == id);
+
+                    if (template == null)
+                    {
+                        return NotFound();
+                    }
+
+                    // 更新模板基本信息
+                    template.Name = model.Name;
+                    template.Description = model.Description;
+                    template.QuestionnaireId = model.QuestionnaireId;
+                    template.Priority = model.Priority;
+                    template.UpdatedDate = DateTime.Now;
+                    template.UpdatedBy = User.Identity?.Name ?? "System";
+
+                    // 处理文件上传（如果有新文件上传）
+                    if (model.TemplateFile != null && model.TemplateFile.Length > 0)
+                    {
+                        // 删除旧文件
+                        if (!string.IsNullOrEmpty(template.TemplatePath))
+                        {
+                            var oldFilePath = Path.Combine(_environment.WebRootPath, "Templates", template.TemplatePath);
+                            if (System.IO.File.Exists(oldFilePath))
+                            {
+                                System.IO.File.Delete(oldFilePath);
+                            }
+                        }
+
+                        // 保存新文件
+                        var uploadsFolder = Path.Combine(_environment.WebRootPath, "Templates");
+                        if (!Directory.Exists(uploadsFolder))
+                        {
+                            Directory.CreateDirectory(uploadsFolder);
+                        }
+
+                        var fileName = Guid.NewGuid().ToString() + Path.GetExtension(model.TemplateFile.FileName);
+                        var filePath = Path.Combine(uploadsFolder, fileName);
+
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await model.TemplateFile.CopyToAsync(stream);
+                        }
+
+                        template.TemplatePath = fileName;
+                    }
+
+                    // 更新条件：先删除旧条件，再添加新条件
+                    _context.TemplateConditions.RemoveRange(template.Conditions);
+
+                    if (model.Conditions != null && model.Conditions.Any())
+                    {
+                        for (int i = 0; i < model.Conditions.Count; i++)
+                        {
+                            var conditionModel = model.Conditions[i];
+                            var condition = new TemplateCondition
+                            {
+                                TemplateId = template.Id,
+                                QuestionId = conditionModel.QuestionId,
+                                QuestionnaireId = model.QuestionnaireId,
+                                ConditionType = conditionModel.ConditionType,
+                                TextResponse = conditionModel.ExpectedAnswer,
+                                OrderIndex = conditionModel.OrderIndex ?? i
+                            };
+                            _context.TemplateConditions.Add(condition);
+                        }
+                    }
+
+                    await _context.SaveChangesAsync();
+                    TempData["Success"] = "模板更新成功！";
+                    return RedirectToAction(nameof(Index));
+                }
+                catch (Exception ex)
+                {
+                    ModelState.AddModelError("", $"更新模板时出错：{ex.Message}");
+                }
+            }
+
+            // 如果模型验证失败，重新加载下拉列表
+            model.Questionnaires = await _context.Questionnaires
+                .Select(q => new SelectListItem { Value = q.Id.ToString(), Text = q.Title })
+                .ToListAsync();
+
+            return View(model);
         }
 
         // POST: Templates/Delete/5
@@ -255,6 +463,13 @@ namespace EngagementLetter.Controllers
                 return StatusCode(500, "删除模板时发生错误");
             }
         }
+
+        // GET: Templates/_ConditionsFrame
+        [HttpGet]
+        public IActionResult _ConditionsFrame()
+        {
+            return View();
+        }
     }
 
     public class TemplateIndexViewModel
@@ -284,7 +499,7 @@ namespace EngagementLetter.Controllers
 
         [Required(ErrorMessage = "请上传模板文件")]
         [DataType(DataType.Upload)]
-        public IFormFile TemplateFile { get; set; }
+        public IFormFile? TemplateFile { get; set; }
 
         public List<TemplateConditionCreateViewModel> Conditions { get; set; } = new List<TemplateConditionCreateViewModel>();
 
@@ -302,5 +517,35 @@ namespace EngagementLetter.Controllers
 
         [Required(ErrorMessage = "请填写预期回答")]
         public string ExpectedAnswer { get; set; }
+
+        public int? OrderIndex { get; set; }
+    }
+
+    public class TemplateEditViewModel
+    {
+        [Required(ErrorMessage = "模板ID不能为空")]
+        public string Id { get; set; }
+
+        [Required(ErrorMessage = "模板名称不能为空")]
+        [StringLength(100, ErrorMessage = "模板名称不能超过100个字符")]
+        public string Name { get; set; }
+
+        [StringLength(500, ErrorMessage = "描述不能超过500个字符")]
+        public string Description { get; set; }
+
+        [Required(ErrorMessage = "请选择关联问卷")]
+        public string QuestionnaireId { get; set; }
+
+        [Range(1, 100, ErrorMessage = "优先级必须在1-100之间")]
+        public int Priority { get; set; } = 50;
+
+        [DataType(DataType.Upload)]
+        public IFormFile? TemplateFile { get; set; }
+
+        public string FileName { get; set; }
+
+        public List<TemplateConditionCreateViewModel> Conditions { get; set; } = new List<TemplateConditionCreateViewModel>();
+
+        public List<SelectListItem> Questionnaires { get; set; } = new List<SelectListItem>();
     }
 }
