@@ -387,10 +387,39 @@ namespace EngagementLetter.Controllers
                     else
                     {
                         // 单选题和文本题处理
-                        if (actualAnswer != expectedAnswer)
+                        // 检查expectedAnswer是否为JArray格式
+                        try
                         {
-                            isMatch = false;
-                            break;
+                            // 尝试反序列化expectedAnswer
+                            var expectedArray = System.Text.Json.JsonSerializer.Deserialize<string[]>(expectedAnswer ?? "");
+                            if (expectedArray != null && expectedArray.Length > 0)
+                            {
+                                // 如果是JArray，使用第一个元素进行比较
+                                var expectedValue = expectedArray[0];
+                                if (actualAnswer != expectedValue)
+                                {
+                                    isMatch = false;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                // 如果不是JArray，直接比较字符串
+                                if (actualAnswer != expectedAnswer)
+                                {
+                                    isMatch = false;
+                                    break;
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // 反序列化失败，直接比较字符串
+                            if (actualAnswer != expectedAnswer)
+                            {
+                                isMatch = false;
+                                break;
+                            }
                         }
                     }
         
@@ -418,7 +447,7 @@ namespace EngagementLetter.Controllers
         
             // 返回文件下载
             var fileStream = System.IO.File.OpenRead(filePath);
-            var fileName = $"{engLetter.Title}_{DateTime.Now:yyyyMMddHHmmss}.docx";
+            var fileName = $"{engLetter.Title}_{matchedTemplate.Name}_{DateTime.Now:yyyyMMddHHmmss}.docx";
             return File(fileStream, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", fileName);
         }
     }
