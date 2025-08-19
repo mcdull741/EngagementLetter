@@ -14,6 +14,8 @@ namespace EngagementLetter.Data
         public DbSet<EngLetter> EngLetters { get; set; }
         public DbSet<Template> Templates { get; set; }
         public DbSet<TemplateCondition> TemplateConditions { get; set; }
+        public DbSet<ReplaceContent> ReplaceContents { get; set; }
+        public DbSet<ReplaceContentCondition> ReplaceContentConditions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -64,6 +66,50 @@ namespace EngagementLetter.Data
                       .WithMany()
                       .HasForeignKey(e => e.QuestionId)
                       .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ReplaceContent配置
+            modelBuilder.Entity<ReplaceContent>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Key).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.Description).HasMaxLength(1000);
+                entity.Property(e => e.BindQuestion).HasDefaultValue(true);
+
+                entity.HasIndex(e => e.QuestionnaireId);
+                entity.HasIndex(e => e.Key);
+
+                entity.HasOne(e => e.Questionnaire)
+                      .WithMany()
+                      .HasForeignKey(e => e.QuestionnaireId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ReplaceContentCondition配置
+            modelBuilder.Entity<ReplaceContentCondition>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.LogicOperator).HasMaxLength(10).HasDefaultValue("AND");
+                entity.Property(e => e.OrderIndex).HasDefaultValue(0);
+
+                entity.HasIndex(e => e.QuestionnaireId);
+                entity.HasIndex(e => e.QuestionId);
+                entity.HasIndex(e => e.ReplaceContentId);
+
+                entity.HasOne(e => e.Questionnaire)
+                      .WithMany()
+                      .HasForeignKey(e => e.QuestionnaireId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Question)
+                      .WithMany()
+                      .HasForeignKey(e => e.QuestionId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ReplaceContent)
+                      .WithMany(e => e.Conditions)
+                      .HasForeignKey(e => e.ReplaceContentId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

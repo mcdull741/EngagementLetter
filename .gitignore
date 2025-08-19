@@ -4,6 +4,11 @@ obj/
 
 # 数据库文件
 *.db
+*.db-shm
+*.db-wal
+EngagementLetter/EngagementLetter.db
+EngagementLetter/EngagementLetter.db-shm
+EngagementLetter/EngagementLetter.db-wal
 
 # 环境配置
 appsettings.Development.json
@@ -28,6 +33,9 @@ appsettings.Production.json
 
 # wwwroot中的第三方库
 wwwroot/lib/
+
+# wwwroot中的模板文件
+wwwroot/Templates/
 
 # Node.js相关(如果有)
 node_modules/
@@ -56,3 +64,4 @@ publish/
 # 测试结果
 TestResults/
 coverage/
+

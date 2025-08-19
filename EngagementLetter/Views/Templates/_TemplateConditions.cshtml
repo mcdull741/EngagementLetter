@@ -40,7 +40,7 @@
                         questionId: cond.QuestionId || cond.questionId || '',
                         conditionType: cond.ConditionType || cond.conditionType || 'Equals',
                         expectedAnswer: cond.ExpectedAnswer || cond.expectedAnswer || '',
-                        index: index
+                        index: cond.OrderIndex || cond.orderIndex || index
                     };
                     conditionIndex = index + 1;
                     conditions.push(condition);
@@ -59,10 +59,11 @@
     // 获取所有条件数据
         function getAllConditions() {
             return conditions.map(condition => ({
-                QuestionId: condition.questionId,
-                ConditionType: condition.conditionType,
-                ExpectedAnswer: condition.expectedAnswer,
-                OrderIndex: condition.index
+                QuestionId: condition.questionId || condition.QuestionId,
+                ConditionType: condition.conditionType || condition.ConditionType,
+                ExpectedAnswer: condition.expectedAnswer || condition.ExpectedAnswer,
+                OrderIndex: condition.index || condition.OrderIndex
+
             }));
         }
 
