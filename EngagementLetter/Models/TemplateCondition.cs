@@ -84,7 +84,8 @@ namespace EngagementLetter.Models
         /// <summary>
         /// 获取操作符显示文本
         /// </summary>
-        private string GetOperatorText(string conditionType)
+        private static string GetOperatorText(string conditionType)
+
         {
             return conditionType switch
             {

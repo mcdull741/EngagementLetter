@@ -32,14 +32,9 @@ namespace EngagementLetter.Models
         public string Description { get; set; }
 
         /// <summary>
-        /// 当BindQuestion为True时，Content不可以编辑，直接用Conditions第一个问题的答案作为Content进行替换
-        /// 为False时，Content内容可以编辑，当满足条件时，使用Content进行替换
-        /// </summary>
-        public bool BindQuestion { get; set; } = true;
-
-        /// <summary>
         /// 替换内容
         /// </summary>
+        [Required(ErrorMessage = "替换内容不能为空")]
         public string? Content { get; set; }
 
         /// <summary>
@@ -48,24 +43,8 @@ namespace EngagementLetter.Models
         public virtual ICollection<ReplaceContentCondition> Conditions { get; set; } = new List<ReplaceContentCondition>();
     
         /// <summary>
-        /// 关联的问卷对象
+        /// 关联的问卷对象（导航属性）
         /// </summary>
-        public virtual Questionnaire Questionnaire { get; set; }
-    
-        /// <summary>
-        /// 获取操作符显示文本
-        /// </summary>
-        private static string GetOperatorText(string conditionType)
-        {
-            return conditionType switch
-            {
-                "Equals" => "等于",
-                "Contains" => "包含",
-                "GreaterThan" => "大于",
-                "LessThan" => "小于",
-                "NotEquals" => "不等于",
-                _ => conditionType
-            };
-        }
+        public virtual Questionnaire? Questionnaire { get; set; }
     }
 }

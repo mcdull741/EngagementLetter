@@ -74,7 +74,7 @@ namespace EngagementLetter.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Key).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.Description).HasMaxLength(1000);
-                entity.Property(e => e.BindQuestion).HasDefaultValue(true);
+
 
                 entity.HasIndex(e => e.QuestionnaireId);
                 entity.HasIndex(e => e.Key);

@@ -1,0 +1,278 @@
+@model EngagementLetter.Models.ViewModels.ReplaceContentViewModel
+
+@{
+    ViewData["Title"] = "创建替换内容";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">创建替换内容</h1>
+            @{
+                var questionnaireTitle = ViewBag.QuestionnaireTitle as string;
+                if (!string.IsNullOrEmpty(questionnaireTitle))
+                {
+                    <p class="text-muted mb-0">@questionnaireTitle</p>
+                }
+            }
+        </div>
+        <a href="/ReplaceContents?questionnaireId=@ViewBag.QuestionnaireId" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>返回列表
+        </a>
+    </div>
+
+    <!-- 错误提示区域 -->
+    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.ErrorCount > 0)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <h5 class="alert-heading">
+                <i class="fas fa-exclamation-triangle me-2"></i>表单验证失败
+            </h5>
+            <div asp-validation-summary="All" class="mb-0"></div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <form asp-action="Create" method="post" id="replaceContentForm">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">替换内容信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label asp-for="QuestionnaireId" class="form-label">关联问卷 <span class="text-danger">*</span></label>
+                            @{
+                                var questionnaireId = ViewBag.QuestionnaireId as string;
+                                var hasQuestionnaireId = !string.IsNullOrEmpty(questionnaireId);
+                                var questionnaireTitle = ViewBag.QuestionnaireTitle as string;
+                            }
+                            @if (hasQuestionnaireId)
+                            {
+                                <input type="hidden" asp-for="QuestionnaireId" value="@questionnaireId" />
+                                <input type="text" class="form-control" value="@questionnaireTitle" readonly />
+                            }
+                            else
+                            {
+                                <select asp-for="QuestionnaireId" class="form-select" asp-items="ViewBag.Questionnaires">
+                                    <option value="">-- 请选择问卷 --</option>
+                                </select>
+                            }
+                            <span asp-validation-for="QuestionnaireId" class="text-danger field-validation-valid"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Key" class="form-label">关键字 <span class="text-danger">*</span></label>
+                            <input asp-for="Key" class="form-control" placeholder="请输入替换关键字" />
+                            <div class="form-text">替换内容的关键字，在模板中使用此关键字进行替换</div>
+                            <span asp-validation-for="Key" class="text-danger field-validation-valid"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">描述</label>
+                            <textarea asp-for="Description" class="form-control" rows="3" placeholder="请输入替换内容描述"></textarea>
+                            <span asp-validation-for="Description" class="text-danger field-validation-valid"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Content" class="form-label">替换内容 <span class="text-danger">*</span></label>
+                            <textarea asp-for="Content" class="form-control" rows="6" placeholder="请输入要替换的内容"></textarea>
+                            <div class="form-text">当条件满足时，将替换为这段内容</div>
+                            <span asp-validation-for="Content" class="text-danger field-validation-valid"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">替换条件设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="conditionsContainer">
+                            <iframe id="conditionsFrame" 
+                                    src="/ReplaceContents/_ConditionsFrame" 
+                                    width="100%" 
+                                    height="600" 
+                                    frameborder="0"
+                                    style="min-height: 600px;"></iframe>
+                        </div>
+                        <input type="hidden" id="conditionsJson" name="conditionsJson" />
+                        <div id="noQuestionnaireWarning" class="alert alert-warning" style="display: none;">
+                            <i class="fas fa-exclamation-triangle"></i> 请先选择关联问卷，然后才能设置替换条件。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">操作</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-save me-1"></i>保存替换内容
+                            </button>
+                            <a href="/ReplaceContents?questionnaireId=@ViewBag.QuestionnaireId" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i>取消
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">提示</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled small">
+                            <li class="mb-2">
+                                <i class="fas fa-info-circle text-info me-1"></i>
+                                替换条件将在保存时一并保存到数据库
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                                关键字应该唯一，避免与现有替换内容冲突
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-lightbulb text-success me-1"></i>
+                                可以设置多个条件，所有条件都满足时才会替换内容
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        let conditionsData = [];
+        let conditionsFrameLoaded = false;
+
+        $(document).ready(function() {
+            // 预设置问卷ID
+            const urlParams = new URLSearchParams(window.location.search);
+            const questionnaireId = urlParams.get('questionnaireId') || '@ViewBag.QuestionnaireId';
+            
+            if (questionnaireId) {
+                $('#QuestionnaireId').val(questionnaireId);
+            }
+            
+            // 初始化条件区域显示状态
+            const initialQuestionnaireId = $('#QuestionnaireId').val();
+            if (initialQuestionnaireId) {
+                $('#conditionsContainer').show();
+                $('#noQuestionnaireWarning').hide();
+            } else {
+                $('#conditionsContainer').hide();
+                $('#noQuestionnaireWarning').show();
+            }
+
+            // 监听问卷变化
+            $('#QuestionnaireId').on('change', function() {
+                const selectedQuestionnaireId = $(this).val();
+                if (selectedQuestionnaireId) {
+                    $('#conditionsContainer').show();
+                    $('#noQuestionnaireWarning').hide();
+                    
+                    if (conditionsFrameLoaded) {
+                        const frame = document.getElementById('conditionsFrame');
+                        frame.contentWindow.postMessage({
+                            type: 'setQuestionnaireId',
+                            questionnaireId: selectedQuestionnaireId,
+                            conditions: conditionsData
+                        }, '*');
+                    }
+                } else {
+                    $('#conditionsContainer').hide();
+                    $('#noQuestionnaireWarning').show();
+                }
+            });
+
+            // 监听来自iframe的消息
+            window.addEventListener('message', function(event) {
+                if (event.data.type === 'conditionsFrameLoaded') {
+                    conditionsFrameLoaded = true;
+                    const selectedQuestionnaireId = $('#QuestionnaireId').val();
+                    if (selectedQuestionnaireId) {
+                        $('#conditionsContainer').show();
+                        $('#noQuestionnaireWarning').hide();
+                        const frame = document.getElementById('conditionsFrame');
+                        frame.contentWindow.postMessage({
+                            type: 'setQuestionnaireId',
+                            questionnaireId: selectedQuestionnaireId,
+                            conditions: conditionsData
+                        }, '*');
+                    } else {
+                        $('#conditionsContainer').hide();
+                        $('#noQuestionnaireWarning').show();
+                    }
+                } else if (event.data.type === 'conditionsData') {
+                    conditionsData = event.data.conditions;
+                    $('#conditionsJson').val(JSON.stringify(conditionsData));
+                }
+            });
+
+            // 调整iframe高度
+            function adjustIframeHeight() {
+                const frame = document.getElementById('conditionsFrame');
+                if (frame && frame.contentDocument) {
+                    const height = frame.contentDocument.body.scrollHeight;
+                    frame.style.height = (height + 50) + 'px';
+                }
+            }
+
+            // 定期检查iframe高度
+            setInterval(adjustIframeHeight, 500);
+
+            // 滚动到第一个错误字段
+            function scrollToFirstError() {
+                const firstError = $('.field-validation-error, .input-validation-error').first();
+                if (firstError.length) {
+                    $('html, body').animate({
+                        scrollTop: firstError.offset().top - 100
+                    }, 500);
+                    firstError.focus();
+                }
+            }
+
+            // 页面加载时如果有错误，滚动到错误位置
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <text>
+                setTimeout(scrollToFirstError, 100);
+                </text>
+            }
+
+            // 表单提交处理
+            $('#replaceContentForm').on('submit', function(e) {
+                // 打印即将提交的表单数据
+                console.log('即将提交的表单数据:');
+                console.log('QuestionnaireId:', $('#QuestionnaireId').val());
+                console.log('Key:', $('#Key').val());
+                console.log('Description:', $('#Description').val());
+                console.log('Content:', $('#Content').val());
+                console.log('conditionsJson:', $('#conditionsJson').val());
+                
+                const submitBtn = $('#submitBtn');
+                
+                // 禁用提交按钮防止重复提交
+                submitBtn.prop('disabled', true);
+                submitBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>保存中...');
+                
+                // 如果验证失败，重新启用按钮
+                if (!$(this).valid()) {
+                    submitBtn.prop('disabled', false);
+                    submitBtn.html('<i class="fas fa-save me-1"></i>保存替换内容');
+                    scrollToFirstError();
+                    return false;
+                }
+            });
+        });
+    </script>
+}

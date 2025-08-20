@@ -16,19 +16,19 @@ namespace EngagementLetter.Models
         /// 关联的问卷ID
         /// </summary>
         [ForeignKey("Questionnaire")]
-        public required string QuestionnaireId { get; set; }
+        public string QuestionnaireId { get; set; }
 
         /// <summary>
         /// 关联的问题ID
         /// </summary>
         [ForeignKey("Question")]
-        public required string QuestionId { get; set; }
+        public string QuestionId { get; set; }
 
         /// <summary>
         /// 关联的替换内容ID
         /// </summary>
         [ForeignKey("ReplaceContent")]
-        public required string ReplaceContentId { get; set; }
+        public string ReplaceContentId { get; set; }
 
         /// <summary>
         /// 条件匹配的文本响应值, JArray格式字符串，
@@ -37,6 +37,12 @@ namespace EngagementLetter.Models
         /// </summary>
         [Column(TypeName = "TEXT")]
         public string TextResponse { get; set; } = "[]";
+
+        /// <summary>
+        /// 条件类型（等于、包含、大于、小于等）
+        /// </summary>
+        [StringLength(50)]
+        public string ConditionType { get; set; } = "Equals"; // Equals, Contains, GreaterThan, LessThan, NotEquals
 
         /// <summary>
         /// 条件逻辑关系（AND、OR）
@@ -52,17 +58,32 @@ namespace EngagementLetter.Models
         /// <summary>
         /// 关联的问卷对象
         /// </summary>
-        public required virtual Questionnaire Questionnaire { get; set; }
+        public virtual Questionnaire Questionnaire { get; set; }
 
         /// <summary>
         /// 关联的问题对象
         /// </summary>  
-        public required virtual Question Question { get; set; }
+        public virtual Question Question { get; set; }
 
         /// <summary>
         /// 关联的替换内容对象
         /// </summary>
-        public required virtual ReplaceContent ReplaceContent { get; set; }
+        public virtual ReplaceContent ReplaceContent { get; set; }
 
+        /// <summary>
+        /// 获取操作符显示文本
+        /// </summary>
+        private static string GetOperatorText(string conditionType)
+        {
+            return conditionType switch
+            {
+                "Equals" => "等于",
+                "Contains" => "包含",
+                "GreaterThan" => "大于",
+                "LessThan" => "小于",
+                "NotEquals" => "不等于",
+                _ => conditionType
+            };
+        }
     }
 }

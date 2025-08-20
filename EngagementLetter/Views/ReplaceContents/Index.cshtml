@@ -1,0 +1,214 @@
+@model IEnumerable<EngagementLetter.Models.ReplaceContent>
+
+@{
+    ViewData["Title"] = "替换内容管理";
+    var questionnaire = ViewBag.Questionnaire as EngagementLetter.Models.Questionnaire;
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>替换内容管理</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-controller="Questionnaires" asp-action="Index">问卷管理</a></li>
+                    <li class="breadcrumb-item active">@questionnaire?.Title</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a asp-action="Create" asp-route-questionnaireId="@questionnaire?.Id" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> 新建替换内容
+            </a>
+            <a asp-controller="Questionnaires" asp-action="Index" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> 返回问卷列表
+            </a>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-file-earmark-text" style="font-size: 3rem; color: #6c757d;"></i>
+            <h4 class="text-muted mt-3">暂无替换内容</h4>
+            <p class="text-muted">此问卷还没有创建任何替换内容</p>
+            <a asp-action="Create" asp-route-questionnaireId="@questionnaire?.Id" class="btn btn-primary mt-3">
+                <i class="bi bi-plus-circle"></i> 创建第一个替换内容
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">替换内容列表</h5>
+                        <small class="text-muted">共 @Model.Count() 个替换内容</small>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="25%">替换关键字</th>
+                                        <th width="35%">描述</th>
+                                        <th width="20%">条件数量</th>
+                                        <th width="20%">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in Model.OrderBy(x => x.Key))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <code class="text-primary">@item.Key</code>
+                                            </td>
+                                            <td>
+                                                @if (string.IsNullOrEmpty(item.Description))
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                                else
+                                                {
+                                                    @item.Description
+                                                }
+                                            </td>
+
+                                            <td>
+                                                <span class="badge bg-info">@item.Conditions.Count</span>
+                                                @if (item.Conditions.Any())
+                                                {
+                                                    <small class="text-muted">
+                                                        @string.Join(", ", item.Conditions.Select(c => (c.Question?.Content?.Length > 20 ? c.Question.Content.Substring(0, 20) + "..." : c.Question?.Content)).Take(2))
+                                                        @(item.Conditions.Count > 2 ? $" 等{item.Conditions.Count}个" : "")
+                                                    </small>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="编辑">
+                                                        <i class="bi bi-pencil"></i> 编辑
+                                                    </a>
+                                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger delete-btn" title="删除" data-key="@item.Key">
+                                                        <i class="bi bi-trash"></i> 删除
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <form id="antiForgeryForm">
+        @Html.AntiForgeryToken()
+    </form>
+    
+    <script>
+        $(document).ready(function() {
+            // 添加悬停效果
+            $('.table tbody tr').hover(
+                function() {
+                    $(this).addClass('table-active');
+                },
+                function() {
+                    $(this).removeClass('table-active');
+                }
+            );
+
+            // 删除确认 - 通过API直接删除
+            $('.delete-btn').on('click', function(e) {
+                e.preventDefault();
+                const url = $(this).attr('href');
+                const key = $(this).data('key');
+                const $row = $(this).closest('tr');
+                
+                if (confirm(`确定要删除替换内容 "${key}" 吗？\n\n删除后相关的所有条件也会被删除。`)) {
+                    // 显示加载状态
+                    const $btn = $(this);
+                    const originalText = $btn.html();
+                    $btn.html('<i class="bi bi-hourglass-split"></i> 删除中...').prop('disabled', true);
+                    
+                    // 通过AJAX发送删除请求
+                    $.ajax({
+                        url: url,
+                        type: 'POST',
+                        headers: {
+                            'RequestVerificationToken': $('#antiForgeryForm input[name="__RequestVerificationToken"]').val()
+                        },
+                        success: function(result) {
+                            // 删除成功，移除行
+                            $row.fadeOut(300, function() {
+                                $(this).remove();
+                                
+                                // 检查是否还有数据
+                                const remainingRows = $('.table tbody tr').length;
+                                if (remainingRows === 0) {
+                                    location.reload(); // 重新加载页面显示空状态
+                                } else {
+                                    // 更新计数
+                                    updateTableCount();
+                                }
+                            });
+                            
+                            // 显示成功提示
+                            showToast('删除成功', '替换内容已删除', 'success');
+                        },
+                        error: function(xhr, status, error) {
+                            // 恢复按钮状态
+                            $btn.html(originalText).prop('disabled', false);
+                            
+                            // 显示错误提示
+                            const errorMsg = xhr.responseJSON?.message || '删除失败，请稍后重试';
+                            showToast('删除失败', errorMsg, 'error');
+                        }
+                    });
+                }
+            });
+            
+            // 更新表格计数
+            function updateTableCount() {
+                const count = $('.table tbody tr').length;
+                $('.card-header small').text(`共 ${count} 个替换内容`);
+            }
+            
+            // 显示提示消息
+            function showToast(title, message, type) {
+                // 创建toast元素
+                const toastHtml = `
+                    <div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <strong>${title}</strong><br>${message}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                        </div>
+                    </div>
+                `;
+                
+                // 添加到页面
+                const $toastContainer = $('#toast-container');
+                if ($toastContainer.length === 0) {
+                    $('body').append('<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>');
+                }
+                
+                const $toast = $(toastHtml).appendTo('#toast-container');
+                const toast = new bootstrap.Toast($toast[0]);
+                toast.show();
+                
+                // 自动移除
+                $toast[0].addEventListener('hidden.bs.toast', function() {
+                    $toast.remove();
+                });
+            }
+        });
+    </script>
+}
