@@ -9,6 +9,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 
+
 namespace EngagementLetter.Controllers
 {
     public class EngLettersController : Controller
@@ -330,7 +331,12 @@ namespace EngagementLetter.Controllers
             {
                 return NotFound();
             }
-        
+
+            var replaceContents = await _context.ReplaceContents
+                .Include(rc => rc.Conditions)
+                .Where(rc => rc.QuestionnaireId == engLetter.QuestionnaireId)
+                .ToListAsync();
+
             // 获取关联的模板
             var templates = await _context.Templates
                 .Include(t => t.Conditions)

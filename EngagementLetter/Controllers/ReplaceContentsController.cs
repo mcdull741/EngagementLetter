@@ -297,11 +297,18 @@ namespace EngagementLetter.Controllers
 
             if (ModelState.IsValid)
             {
+                // 验证并修正Key格式，确保为中括号包裹的格式
+                var key = viewModel.Key?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(key) && !key.StartsWith("[") && !key.EndsWith("]"))
+                {
+                    key = $"[{key}]";
+                }
+
                 var replaceContent = new ReplaceContent
                 {
                     Id = viewModel.Id,
                     QuestionnaireId = viewModel.QuestionnaireId,
-                    Key = viewModel.Key,
+                    Key = key,
                     Description = viewModel.Description,
                     Content = viewModel.Content
                 };
