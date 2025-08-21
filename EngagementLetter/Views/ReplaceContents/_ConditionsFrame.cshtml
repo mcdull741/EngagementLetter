@@ -74,10 +74,36 @@
 
             // 监听来自父页面的消息
             window.addEventListener('message', function(event) {
-                if (event.data.type === 'setQuestionnaireId') {
+                //console.log(event.data.type , event.data);
+                if (event.data.type === 'conditionsFrameLoaded') {
+                    conditionsFrameLoaded = true;
+                    const questionnaireId = event.data.questionnaireId;
+                    if (questionnaireId) {
+                        $('#conditionsContainer').show();
+                        $('#noQuestionnaireWarning').hide();
+                        const frame = document.getElementById('conditionsFrame');
+                        frame.contentWindow.postMessage({
+                            type: 'setQuestionnaireId',
+                            questionnaireId: questionnaireId,
+                            conditions: conditionsData
+                        }, '*');
+                    } else {
+                        $('#conditionsContainer').hide();
+                        $('#noQuestionnaireWarning').show();
+                    }
+                } else if (event.data.type === 'setQuestionnaireId') {
                     currentQuestionnaireId = event.data.questionnaireId;
                     conditions = event.data.conditions || [];
                     loadQuestions();
+                } else if (event.data.type === 'initializeConditions') {
+                    currentQuestionnaireId = event.data.questionnaireId;
+                    conditions = event.data.conditions || [];
+                    console.log('初始化条件:', conditions);
+
+                    loadQuestions();
+                } else if (event.data.type === 'conditionsData') {
+                    conditionsData = event.data.conditions;
+                    $('#conditionsJson').val(JSON.stringify(conditionsData));
                 }
             });
         });
@@ -117,10 +143,8 @@
             }
 
             let html = '';
-            conditions.forEach((condition, index) => {
-                html += createConditionHtml(index, condition);
-            });
-
+            console.log('conditions:', conditions);
+            
             if (conditions.length === 0) {
                 html = `
                     <div class="text-center text-muted py-4">
@@ -128,6 +152,12 @@
                         <p>点击"添加条件"按钮开始设置替换条件</p>
                     </div>
                 `;
+            }else{
+                conditions
+                    .sort((a, b) => a.orderIndex - b.orderIndex)
+                    .forEach((condition, index) => {
+                        html += createConditionHtml(index, condition);
+                    });
             }
 
             $('#conditionsList').html(html);
@@ -135,7 +165,7 @@
 
         function createConditionHtml(index, condition = {}) {
             const questionOptions = questions.map(q => 
-                `<option value="${q.id}" ${condition.questionId === q.id ? 'selected' : ''}>${q.content}</option>`
+                `<option value="${q.id}" ${(condition.questionId || condition.QuestionId) === q.id ? 'selected' : ''}>${q.content}</option>`
             ).join('');
 
             const conditionTypeOptions = [
@@ -145,18 +175,19 @@
                 { value: 'LessThan', text: '小于' },
                 { value: 'NotEquals', text: '不等于' }
             ].map(opt => 
-                `<option value="${opt.value}" ${condition.conditionType === opt.value ? 'selected' : ''}>${opt.text}</option>`
+                `<option value="${opt.value}" ${(condition.conditionType || condition.ConditionType) === opt.value ? 'selected' : ''}>${opt.text}</option>`
             ).join('');
 
             // 获取当前问题
-            const question = questions.find(q => q.id === condition.questionId);
+            const question = questions.find(q => (q.id === condition.questionId || q.id === condition.QuestionId));
             
             // 渲染预期答案部分
-            console.log("渲染预期答案部分-question:"+JSON.stringify(question));
-            console.log("渲染预期条件部分-condition:"+JSON.stringify(condition));
-            const expectedAnswerHtml = question ? renderExpectedAnswer(index, question, condition.expectedAnswer) : 
+            //console.log("渲染预期答案部分-question:"+JSON.stringify(question));
+            //console.log("渲染预期条件部分-condition:"+JSON.stringify(condition));
+            const expectedAnswerHtml = question ? renderExpectedAnswer(index, question, condition.expectedAnswer || condition.ExpectedAnswer) : 
+
                 `<input type="text" class="form-control" 
-                       value="${condition.expectedAnswer || ''}" 
+                       value="${condition.expectedAnswer || condition.ExpectedAnswer || ''}" 
                        placeholder="输入预期答案"
                        onchange="updateCondition(${index})">`;
 
@@ -210,8 +241,9 @@
                 case 2: // 文本
                     html = `
                         <textarea class="form-control" rows="3" 
-                                  onchange="updateCondition(${index})" 
-                                  placeholder="请输入预期答案">${expectedAnswer || ''}</textarea>
+                                  onchange="updateTextValue(${index}, this.value)" 
+                                  placeholder="请输入预期答案">${JSON.parse(expectedAnswer || '[]')[0]}</textarea>
+
                     `;
                     break;
                 default:
@@ -232,7 +264,8 @@
                 let selectedValue = '';
                 
                 try {
-                    selectedValue = expectedAnswer;
+                    eA = JSON.parse(expectedAnswer || '[]');
+                    selectedValue = eA[0];
                 } catch (e) {
                     console.warn('解析预期答案失败:', e);
                 }
@@ -275,10 +308,11 @@
         function updateRadioValue(index) {
             const radio = $(`.condition-item[data-index="${index}"] input[type="radio"]:checked`);
             const value = radio.length ? radio.val() : '';
+            const jsonString = JSON.stringify([value]);
             
             const condition = conditions[index];
             if (condition) {
-                condition.expectedAnswer = value;
+                condition.expectedAnswer = jsonString;
                 notifyParentDataChanged();
             }
         }
@@ -335,6 +369,15 @@
             const jsonString = JSON.stringify(values);
             
             const condition = conditions[index];
+            if (condition) {
+                condition.expectedAnswer = jsonString;
+                notifyParentDataChanged();
+            }
+        }
+
+        function updateTextValue(index, value) {
+            const condition = conditions[index];
+            const jsonString = JSON.stringify([value]);
             if (condition) {
                 condition.expectedAnswer = jsonString;
                 notifyParentDataChanged();

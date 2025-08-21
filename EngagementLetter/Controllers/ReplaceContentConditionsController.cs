@@ -108,11 +108,12 @@ namespace EngagementLetter.Controllers
             // 获取替换内容对应的问卷的问题
             var replaceContent = _context.ReplaceContents
                 .Include(rc => rc.Questionnaire)
-                .ThenInclude(q => q.Questions)
+                    .ThenInclude(q => q.Questions)
                 .FirstOrDefault(rc => rc.Id == replaceContentCondition.ReplaceContentId);
 
             if (replaceContent?.Questionnaire?.Questions != null)
             {
+                ViewBag.Questionnaire = replaceContent.Questionnaire;
                 ViewBag.Questions = replaceContent.Questionnaire.Questions
                     .OrderBy(q => q.SortOrder)
                     .ToList();

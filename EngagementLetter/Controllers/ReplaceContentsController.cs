@@ -193,6 +193,26 @@ namespace EngagementLetter.Controllers
                     
                 ViewBag.Questions = questions;
             }
+
+            // 获取替换内容的所有现有条件
+            if (!string.IsNullOrEmpty(viewModel?.Id))
+            {
+                var existingConditions = await _context.ReplaceContentConditions
+                    .Include(c => c.Question)
+                    .Where(c => c.ReplaceContentId == viewModel.Id)
+                    .OrderBy(c => c.OrderIndex)
+                    .Select(c => new 
+                    {
+                        QuestionId = c.QuestionId,
+                        ExpectedAnswer = c.TextResponse,
+                        OrderIndex = c.OrderIndex,
+                        LogicOperator = c.LogicOperator ?? "AND",
+                        QuestionContent = c.Question.Content
+                    })
+                    .ToListAsync();
+
+                ViewBag.ExistingConditionsJson = System.Text.Json.JsonSerializer.Serialize(existingConditions);
+            }
             
             return View(viewModel);
         }
@@ -207,12 +227,16 @@ namespace EngagementLetter.Controllers
 
             var replaceContent = await _context.ReplaceContents
                 .Include(rc => rc.Questionnaire)
+                .Include(rc => rc.Conditions)
+                .ThenInclude(c => c.Question)
                 .FirstOrDefaultAsync(rc => rc.Id == id);
 
             if (replaceContent == null)
             {
                 return NotFound();
             }
+            ViewBag.QuestionnaireTitle = replaceContent.Questionnaire.Title;
+            ViewBag.QuestionnaireId = replaceContent.Questionnaire.Id;
 
             // 获取问卷的问题列表，只选择需要的属性，避免循环引用
             var questions = _context.Questions
@@ -228,6 +252,26 @@ namespace EngagementLetter.Controllers
                 .ToList();
                 
             ViewBag.Questions = questions;
+            
+            // 序列化现有条件数据
+            object existingConditions;
+            if(null != replaceContent){
+                existingConditions = replaceContent.Conditions.Select(c => new 
+                {
+                    questionId = c.QuestionId,
+                    expectedAnswer = c.TextResponse,
+                    orderIndex = c.OrderIndex,
+                    logicOperator = c.LogicOperator ?? "AND",
+                    questionContent = c.Question?.Content ?? "",
+                    conditionType = c.ConditionType ?? "Euqal"
+                }).ToList();
+            }
+            else
+            {
+                existingConditions = new List<object>();
+            }
+            
+            ViewBag.ExistingConditionsJson = System.Text.Json.JsonSerializer.Serialize(existingConditions);
 
             var viewModel = new ReplaceContentViewModel
             {
