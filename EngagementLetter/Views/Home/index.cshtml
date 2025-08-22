@@ -27,6 +27,7 @@
             <nav class="hidden md:flex items-center space-x-6">
                 <a href="@Url.Action("Index", "Home")" class="nav-item active px-3 py-2 text-sm font-medium text-blue-600">首页</a>
                 <a href="@Url.Action("Index", "Questionnaires")" class="nav-item px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">问卷管理</a>
+                <a href="@Url.Action("Index", "Templates")" class="nav-item px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">模板管理</a>
                 <a href="@Url.Action("Index", "EngLetters")" class="nav-item px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Engagement Letter管理</a>
             </nav>
 
@@ -58,6 +59,16 @@
                     <h2 class="text-xl font-semibold text-gray-800 mb-2">模板管理</h2>
                     <p class="text-gray-600 mb-6">管理Engagement Letter模板</p>
                     <a href="/Templates" class="inline-block bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                        进入管理
+                    </a>
+                </div>
+
+                <!-- Engagement Letter管理卡片 -->
+                <div class="card-hover bg-white rounded-lg shadow p-6 border border-gray-100">
+                    <div class="text-4xl text-indigo-500 mb-4"><i class="fa fa-file-contract"></i></div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-2">Engagement Letter管理</h2>
+                    <p class="text-gray-600 mb-6">创建、编辑和管理Engagement Letter文档</p>
+                    <a href="/EngLetters" class="inline-block bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors">
                         进入管理
                     </a>
                 </div>

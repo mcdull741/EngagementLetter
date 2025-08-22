@@ -96,11 +96,18 @@ namespace EngagementLetter.Controllers
         {
             if (ModelState.IsValid)
             {
+                // 确保Key使用中括号格式
+                var key = viewModel.Key;
+                if (!string.IsNullOrEmpty(key) && !key.StartsWith("[") && !key.EndsWith("]"))
+                {
+                    key = $"[{key}]";
+                }
+
                 var replaceContent = new ReplaceContent
                 {
                     Id = System.Guid.NewGuid().ToString(),
                     QuestionnaireId = viewModel.QuestionnaireId,
-                    Key = viewModel.Key,
+                    Key = key,
                     Description = viewModel.Description,
                     Content = viewModel.Content
                 };

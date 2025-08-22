@@ -75,6 +75,8 @@
     </div>
 </div>
 
+@Html.AntiForgeryToken()
+
 @section Scripts {
     <script>
         function exportReport(id, title) {
@@ -128,14 +130,23 @@
                 cancelButtonText: '取消'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                    const formData = new FormData();
+                    formData.append('id', id);
+                    if (token) {
+                        formData.append('__RequestVerificationToken', token);
+                    }
+
                     fetch(`/EngLetters/Delete/${id}`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                        }
+                        body: formData
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (response.ok) {
+                            return response.json().catch(() => ({ success: true, message: '删除成功' }));
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             Swal.fire(
@@ -148,7 +159,7 @@
                         } else {
                             Swal.fire(
                                 '删除失败!',
-                                data.message,
+                                data.message || '删除操作失败',
                                 'error'
                             );
                         }
@@ -156,7 +167,7 @@
                     .catch(error => {
                         Swal.fire(
                             '删除失败!',
-                            error.message,
+                            error.message || '网络错误',
                             'error'
                         );
                     });
