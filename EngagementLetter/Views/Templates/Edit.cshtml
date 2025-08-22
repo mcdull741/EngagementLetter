@@ -215,10 +215,39 @@
 
         // 表单提交前验证
         $('#templateForm').on('submit', function(e) {
-            // 条件验证现在由iframe内部处理
-            // 这里只需要确保conditionsData已正确设置
+            console.log("表单提交事件触发");
+            console.log("conditionsData:", conditionsData);
+            console.log("表单验证状态:", $(this).valid());
+            
+            // 检查表单验证
+            if (!$(this).valid()) {
+                console.log("表单验证失败，阻止提交");
+                e.preventDefault();
+                return false;
+            }
+            
+            // 验证条件数据的完整性
             if (conditionsData && conditionsData.length > 0) {
-                $('#conditionsData').val(JSON.stringify(conditionsData));
+                // 过滤掉无效的条件（没有questionId的）
+                const validConditions = conditionsData.filter(condition => 
+                    condition.questionId && condition.questionId.trim() !== ''
+                );
+                
+                if (validConditions.length !== conditionsData.length) {
+                    console.log("发现无效的条件，已过滤");
+                    conditionsData = validConditions;
+                }
+                
+                if (conditionsData.length === 0) {
+                    console.log("所有条件都被过滤，清空条件数据");
+                    $('#conditionsData').val('[]');
+                } else {
+                    $('#conditionsData').val(JSON.stringify(conditionsData));
+                    console.log("条件数据已设置:", JSON.stringify(conditionsData));
+                }
+            } else {
+                console.log("无条件数据需要保存");
+                $('#conditionsData').val('[]');
             }
         });
     </script>

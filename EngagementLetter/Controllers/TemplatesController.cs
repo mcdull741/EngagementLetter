@@ -18,6 +18,10 @@ namespace EngagementLetter.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IWebHostEnvironment _environment;
+        private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
 
         public TemplatesController(ApplicationDbContext context, IWebHostEnvironment environment)
         {
@@ -127,7 +131,7 @@ namespace EngagementLetter.Controllers
             {
                 try
                 {
-                    model.Conditions = System.Text.Json.JsonSerializer.Deserialize<List<TemplateConditionCreateViewModel>>(conditionsJson);
+                    model.Conditions = JsonSerializer.Deserialize<List<TemplateConditionCreateViewModel>>(conditionsJson, _jsonOptions);
                 }
                 catch (Exception)
                 {
@@ -280,7 +284,8 @@ namespace EngagementLetter.Controllers
                 {
                     QuestionId = c.QuestionId,
                     ConditionType = c.ConditionType,
-                    ExpectedAnswer = c.TextResponse
+                    ExpectedAnswer = c.TextResponse,
+                    OrderIndex = c.OrderIndex
                 }).ToList() ?? new List<TemplateConditionCreateViewModel>(),
                 Questionnaires = await _context.Questionnaires
                     .Select(q => new SelectListItem { Value = q.Id.ToString(), Text = q.Title })
@@ -312,7 +317,7 @@ namespace EngagementLetter.Controllers
             {
                 try
                 {
-                    var conditions = JsonSerializer.Deserialize<List<TemplateConditionCreateViewModel>>(ConditionsData);
+                    var conditions = JsonSerializer.Deserialize<List<TemplateConditionCreateViewModel>>(ConditionsData, _jsonOptions);
                     model.Conditions = conditions ?? new List<TemplateConditionCreateViewModel>();
                 }
                 catch (Exception ex)
