@@ -143,6 +143,7 @@
             const existingConditions = $('#existingConditions').val();
             if (existingConditions) {
                 try {
+                    $('#conditionsJson').val(existingConditions);
                     conditionsData = JSON.parse(existingConditions);
                 } catch (e) {
                     console.error('解析现有条件数据失败:', e);
