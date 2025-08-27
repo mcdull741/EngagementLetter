@@ -1,0 +1,128 @@
+@model IEnumerable<EngagementLetter.Models.ConditionalResponse>
+
+@{  
+    ViewData["Title"] = "条件响应管理";
+    var questionnaire = ViewBag.Questionnaire as EngagementLetter.Models.Questionnaire;
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">条件响应管理</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="/">首页</a></li>
+                    <li class="breadcrumb-item"><a href="/Questionnaires">问卷管理</a></li>
+                    <li class="breadcrumb-item active">@(questionnaire?.Title ?? "问卷")</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a asp-action="Create" asp-route-questionnaireId="@(questionnaire?.Id)" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> 新增条件响应
+            </a>
+            <a href="/Questionnaires" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> 返回问卷列表
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">条件响应列表</h5>
+        </div>
+        <div class="card-body">
+            @if (Model?.Any() == true)
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 30%">关联问题</th>
+                                <th style="width: 35%">条件响应内容</th>
+                                <th style="width: 15%">条件数量</th>
+                                <th style="width: 20%">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="text-muted">@(item.Question?.Content ?? "未知问题")</span>
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 400px;" title="@item.Response">
+                                            @item.Response
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">
+                                            @(item.Conditions?.Count ?? 0)
+                                        </span>
+                                        @if (item.Conditions?.Any() == true)
+                                        {
+                                            <small class="text-muted">
+                                                @string.Join(", ", item.Conditions.Select(c => c.Question?.Content?.Length > 15 ? c.Question.Content.Substring(0, 15) + "..." : c.Question?.Content ?? "未知问题"))
+                                            </small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="编辑">
+                                                <i class="bi bi-pencil"></i> 编辑
+                                            </a>
+                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="删除">
+                                                <i class="bi bi-trash"></i> 删除
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                    <h5 class="text-muted mt-3">暂无条件响应</h5>
+                    <p class="text-muted">点击下方按钮创建第一个条件响应</p>
+                    <a asp-action="Create" asp-route-questionnaireId="@(questionnaire?.Id)" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> 创建条件响应
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // 页面加载完成后自动关闭提示消息
+        setTimeout(function() {
+            var alerts = document.querySelectorAll('.alert-dismissible');
+            alerts.forEach(function(alert) {
+                var bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 3000);
+    </script>
+}

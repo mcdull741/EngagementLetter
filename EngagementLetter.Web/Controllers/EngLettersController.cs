@@ -15,7 +15,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using DocumentFormat.OpenXml.Drawing.Charts;
 
 
-namespace EngagementLetter.Controllers
+namespace EngagementLetter.Web.Controllers
 {
     public class EngLettersController : Controller
     {

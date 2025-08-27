@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using EngagementLetter.Data;
 using EngagementLetter.Models;
 
-namespace EngagementLetter.Controllers
+namespace EngagementLetter.Web.Controllers
 {
     public class ReplaceContentConditionsController : Controller
     {

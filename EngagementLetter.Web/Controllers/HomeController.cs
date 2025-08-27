@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using EngagementLetter.Models;
 
-namespace EngagementLetter.Controllers;
+namespace EngagementLetter.Web.Controllers;
 
 public class HomeController : Controller
 {

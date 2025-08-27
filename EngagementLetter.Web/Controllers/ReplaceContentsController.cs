@@ -7,7 +7,7 @@ using EngagementLetter.Models;
 using EngagementLetter.Models.DTO;
 using EngagementLetter.Models.ViewModels;
 
-namespace EngagementLetter.Controllers
+namespace EngagementLetter.Web.Controllers
 {
     public class ReplaceContentsController : Controller
     {

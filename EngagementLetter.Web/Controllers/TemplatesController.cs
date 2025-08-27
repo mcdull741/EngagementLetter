@@ -12,7 +12,7 @@ using EngagementLetter.Models;
 using Microsoft.AspNetCore.Authorization;
 using System.ComponentModel.DataAnnotations;
 
-namespace EngagementLetter.Controllers
+namespace EngagementLetter.Web.Controllers
 {
     public class TemplatesController : Controller
     {

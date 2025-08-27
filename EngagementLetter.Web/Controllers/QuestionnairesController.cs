@@ -6,7 +6,7 @@ using EngagementLetter.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 
-namespace EngagementLetter.Controllers
+namespace EngagementLetter.Web.Controllers
 {
     public class QuestionnairesController : Controller
     {
