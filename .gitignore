@@ -8,6 +8,9 @@ obj/
 EngagementLetter/EngagementLetter.db
 EngagementLetter/EngagementLetter.db-shm
 EngagementLetter/EngagementLetter.db-wal
+EngagementLetter.Web/EngagementLetter.db
+EngagementLetter.Web/EngagementLetter.db-shm
+EngagementLetter.Web/EngagementLetter.db-wal
 
 # 环境配置
 appsettings.Development.json

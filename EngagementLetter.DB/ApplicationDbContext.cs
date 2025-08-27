@@ -16,6 +16,8 @@ namespace EngagementLetter.Data
         public DbSet<TemplateCondition> TemplateConditions { get; set; }
         public DbSet<ReplaceContent> ReplaceContents { get; set; }
         public DbSet<ReplaceContentCondition> ReplaceContentConditions { get; set; }
+        public DbSet<ConditionalResponse> ConditionalResponses { get; set; }
+        public DbSet<ConditionalResponseCondition> ConditionalResponseConditions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
