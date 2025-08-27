@@ -1,0 +1,6 @@
+@EngagementLetter.API_HostAddress = http://localhost:5189
+
+GET {{EngagementLetter.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -3,7 +3,6 @@ bin/
 obj/
 
 # 数据库文件
-*.db
 *.db-shm
 *.db-wal
 EngagementLetter/EngagementLetter.db
@@ -32,7 +31,7 @@ appsettings.Production.json
 # Migrations/
 
 # wwwroot中的第三方库
-wwwroot/lib/
+wwwroot/lib/*
 
 # wwwroot中的模板文件
 wwwroot/Templates/
@@ -64,3 +63,5 @@ publish/
 # 测试结果
 TestResults/
 coverage/
+/EngagementLetter/wwwroot/Templates
+/EngagementLetter/wwwroot/lib

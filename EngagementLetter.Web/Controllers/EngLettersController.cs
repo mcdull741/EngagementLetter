@@ -10,6 +10,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using DocumentFormat.OpenXml.Wordprocessing;
 using System.Xml.Linq;
+using DocumentFormat.OpenXml.InkML;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using DocumentFormat.OpenXml.Drawing.Charts;
 
 
 namespace EngagementLetter.Controllers
@@ -59,7 +62,8 @@ namespace EngagementLetter.Controllers
                     Id = engLetterId,
                     Title = title,
                     QuestionnaireId = questionnaireId,
-                    CreatedDate = DateTime.Now
+                    CreatedDate = DateTime.Now,
+                    UpdatedDate = DateTime.Now
                 };
 
                 _context.EngLetters.Add(engLetter);
@@ -648,7 +652,7 @@ namespace EngagementLetter.Controllers
                 // 查找包含关键字的run序列
                 var runs = paragraph.Descendants<DocumentFormat.OpenXml.Wordprocessing.Run>().ToList();
                 var matchingRuns = new List<DocumentFormat.OpenXml.Wordprocessing.Run>();
-                string combinedStr = "";
+                
                 
                 // 收集所有包含关键字的run
                 foreach (var run in runs)
@@ -657,15 +661,32 @@ namespace EngagementLetter.Controllers
                     foreach (var text in run.Descendants<DocumentFormat.OpenXml.Wordprocessing.Text>())
                     {
                         runText += text.Text;
+                        matchingRuns.Add(run);
                     }
                     
-                    if (runText.Contains(kvp.Key) || combinedStr.Contains(kvp.Key) || (combinedStr + runText).Contains(kvp.Key))
+                    if (runText.Contains(kvp.Key))
                     {
-                        matchingRuns.Add(run);
-                        combinedStr += runText;
+                        break;
                     }
                 }
-                
+
+                // 删除不需要的run
+                string combinedStr = "";
+                for (int i = matchingRuns.Count - 1; i >= 0; i--)
+                {
+                    if (combinedStr.Contains(kvp.Key))
+                    {
+                        matchingRuns.RemoveAt(i);
+                        continue;
+                    }
+                    var runStr = "";
+                    foreach (var text in matchingRuns[i].Descendants<DocumentFormat.OpenXml.Wordprocessing.Text>())
+                    {
+                        runStr += text.Text;
+                    }
+                    combinedStr = runStr + combinedStr;
+                }
+
                 if (matchingRuns.Count > 0 && combinedStr.Contains(kvp.Key))
                 {
                     // 替换合并后的字符串
@@ -705,17 +726,18 @@ namespace EngagementLetter.Controllers
                         {
                             // 复制当前段落格式并创建新段落
                             var currParagraph = paragraph;
-                            int localNumberingCounter = 0;
+                            var listNewParagraph = new List<DocumentFormat.OpenXml.Wordprocessing.Paragraph>();
+                            
                             for (int i = 1; i < paragraphs.Length; i++)
                             {
                                 var newParagraph = new DocumentFormat.OpenXml.Wordprocessing.Paragraph();
-                                
+
                                 // 复制段落属性
                                 if (paragraph.ParagraphProperties != null)
                                 {
                                     newParagraph.ParagraphProperties = (DocumentFormat.OpenXml.Wordprocessing.ParagraphProperties)paragraph.ParagraphProperties.CloneNode(true);
                                 }
-                                
+
                                 // 创建新的run
                                 var newRun = new DocumentFormat.OpenXml.Wordprocessing.Run();
                                 
@@ -730,12 +752,27 @@ namespace EngagementLetter.Controllers
                                 newRun.AppendChild(newText);
                                 newParagraph.AppendChild(newRun);
 
-                                // 格式化新段落
-                                FormatParagraph(newParagraph, ref localNumberingCounter);
-
                                 // 插入到当前段落后面
                                 parent.InsertAfter(newParagraph, currParagraph);
                                 currParagraph = currParagraph.NextSibling() as DocumentFormat.OpenXml.Wordprocessing.Paragraph;
+                                listNewParagraph.Add(currParagraph);
+                            }
+
+                            foreach (var p in listNewParagraph)
+                            {
+                                if (p.ParagraphProperties.Indentation != null)
+                                {
+                                    p.ParagraphProperties.Indentation.Remove();
+                                }
+
+                                p.ParagraphProperties.AppendChild(
+                                        new Indentation { Left = Centimeter2Twips(1) }
+                                    );
+
+                                //格式化新段落
+                                int localNumberingCounter = 0;
+                                FormatParagraph(p, ref localNumberingCounter);
+
                             }
                         }
                     }
@@ -790,43 +827,54 @@ namespace EngagementLetter.Controllers
             if (paragraph == null) return;
 
             var paragraphText = GetParagraphPlainText(paragraph);
-            if (string.IsNullOrWhiteSpace(paragraphText)) return;
-
             var trimmedText = paragraphText.TrimStart();
-            if (string.IsNullOrEmpty(trimmedText)) return;
+            if (string.IsNullOrWhiteSpace(trimmedText)) return;
 
             var firstChar = trimmedText[0];
             string actualText = trimmedText.Substring(1).TrimStart();
 
             // 确保段落有ParagraphProperties
-            if (paragraph.ParagraphProperties == null)
+            if(null == paragraph.ParagraphProperties) 
             {
                 paragraph.ParagraphProperties = new DocumentFormat.OpenXml.Wordprocessing.ParagraphProperties();
             }
-
+       
+            var existingNumbering = paragraph.ParagraphProperties.Elements<DocumentFormat.OpenXml.Wordprocessing.NumberingProperties>().FirstOrDefault();
             // 处理bullet point
             if (firstChar == '*')
             {
                 // 创建bullet point的numbering属性
                 var numberingProperties = new DocumentFormat.OpenXml.Wordprocessing.NumberingProperties(
                     new DocumentFormat.OpenXml.Wordprocessing.NumberingLevelReference() { Val = 0 },
-                    new DocumentFormat.OpenXml.Wordprocessing.NumberingId() { Val = 1 }
+                    new DocumentFormat.OpenXml.Wordprocessing.NumberingId() { Val = 52 }
                 );
 
                 // 清除现有的numbering属性
-                var existingNumbering = paragraph.ParagraphProperties.Elements<DocumentFormat.OpenXml.Wordprocessing.NumberingProperties>().FirstOrDefault();
                 if (existingNumbering != null)
                 {
                     existingNumbering.Remove();
                 }
-
                 paragraph.ParagraphProperties.AppendChild(numberingProperties);
 
+                //处理缩进
+                if (null != paragraph.ParagraphProperties.Indentation)
+                {
+                    paragraph.ParagraphProperties.Indentation.Remove();
+                }
+                paragraph.ParagraphProperties.AppendChild(new Indentation
+                {
+                    Left = Centimeter2Twips(1.5),
+                    Hanging = Centimeter2Twips(0.5)
+                });
+   
                 // 更新段落文本
                 UpdateParagraphText(paragraph, actualText);
+
+                return;
             }
+
             // 处理numbering
-            else if (firstChar == '#')
+            if (firstChar == '#')
             {
                 numberingCounter++;
                 
@@ -837,7 +885,6 @@ namespace EngagementLetter.Controllers
                 );
 
                 // 清除现有的numbering属性
-                var existingNumbering = paragraph.ParagraphProperties.Elements<DocumentFormat.OpenXml.Wordprocessing.NumberingProperties>().FirstOrDefault();
                 if (existingNumbering != null)
                 {
                     existingNumbering.Remove();
@@ -848,22 +895,21 @@ namespace EngagementLetter.Controllers
                 // 更新段落文本为带序号格式
                 string numberedText = $"{numberingCounter}. {actualText}";
                 UpdateParagraphText(paragraph, numberedText);
+
+                return;
             }
-            else
+
+            // 如果段落已有numbering属性，提取并更新计数器
+            if (existingNumbering != null)
             {
-                // 如果段落已有numbering属性，提取并更新计数器
-                var existingNumbering = paragraph.ParagraphProperties.Elements<DocumentFormat.OpenXml.Wordprocessing.NumberingProperties>().FirstOrDefault();
-                if (existingNumbering != null)
+                var numberingId = existingNumbering.Elements<DocumentFormat.OpenXml.Wordprocessing.NumberingId>().FirstOrDefault();
+                if (numberingId != null && numberingId.Val == 2)
                 {
-                    var numberingId = existingNumbering.Elements<DocumentFormat.OpenXml.Wordprocessing.NumberingId>().FirstOrDefault();
-                    if (numberingId != null && numberingId.Val == 2)
+                    // 这是一个已有的numbering段落，尝试提取当前序号
+                    var match = System.Text.RegularExpressions.Regex.Match(paragraphText, @"^(\d+)\.");
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int currentNumber))
                     {
-                        // 这是一个已有的numbering段落，尝试提取当前序号
-                        var match = System.Text.RegularExpressions.Regex.Match(paragraphText, @"^(\d+)\.");
-                        if (match.Success && int.TryParse(match.Groups[1].Value, out int currentNumber))
-                        {
-                            numberingCounter = Math.Max(numberingCounter, currentNumber);
-                        }
+                        numberingCounter = Math.Max(numberingCounter, currentNumber);
                     }
                 }
             }
@@ -880,16 +926,29 @@ namespace EngagementLetter.Controllers
 
             // 清除现有的所有run
             var runs = paragraph.Elements<DocumentFormat.OpenXml.Wordprocessing.Run>().ToList();
-            foreach (var run in runs)
+            var idx = 0 ;
+            foreach(var run in runs)
             {
-                run.Remove();
+                if(0 == idx) 
+                {
+                    var texts = paragraph.Elements<DocumentFormat.OpenXml.Wordprocessing.Text>().ToList();
+                    foreach (var t in texts)
+                    {
+                        t.Remove();
+                    }
+                    run.AddChild(new DocumentFormat.OpenXml.Wordprocessing.Text(newText));
+                }
+                else
+                {
+                    run.Remove();
+                }
+                idx++;
             }
+        }
 
-            // 创建新的run和文本
-            var newRun = new DocumentFormat.OpenXml.Wordprocessing.Run();
-            var newRunText = new DocumentFormat.OpenXml.Wordprocessing.Text(newText);
-            newRun.AppendChild(newRunText);
-            paragraph.AppendChild(newRun);
+        private static string Centimeter2Twips(double cen)
+        {
+            return (cen * 567).ToString("#");
         }
 
     }

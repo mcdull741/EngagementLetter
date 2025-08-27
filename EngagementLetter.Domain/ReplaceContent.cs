@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using EngagementLetter.Models.Base;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace EngagementLetter.Models
 {
