@@ -1,0 +1,80 @@
+@model EngagementLetter.Models.ConditionalResponse
+
+@{  
+    ViewData["Title"] = "删除条件响应";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">删除条件响应</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="/">首页</a></li>
+                    <li class="breadcrumb-item"><a href="/Questionnaires">问卷管理</a></li>
+                    <li class="breadcrumb-item"><a asp-action="Index" asp-route-questionnaireId="@Model.QuestionnaireId">条件响应列表</a></li>
+                    <li class="breadcrumb-item active">删除</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-danger bg-opacity-10 border border-danger border-opacity-20">
+            <h5 class="mb-0 text-danger">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>确认删除
+            </h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-4">您确定要删除以下条件响应吗？此操作无法撤销。</p>
+            
+            <div class="bg-light p-4 rounded mb-5">
+                <div class="mb-3">
+                    <h6 class="text-muted">关联问题</h6>
+                    <p class="mb-0">@Model.Question?.Content ?? "未知问题"</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-muted">条件响应内容</h6>
+                    <div class="bg-white p-3 rounded border">
+                        @Html.Raw(Model.Response)
+                    </div>
+                </div>
+                
+                @if (Model.Conditions?.Any() == true)
+                {
+                    <div>
+                        <h6 class="text-muted">条件</h6>
+                        <div class="bg-white p-3 rounded border">
+                            <ul class="list-unstyled">
+                                @foreach (var condition in Model.Conditions)
+                                {
+                                    <li class="mb-2">
+                                        <span class="font-medium">@condition.Question?.Content ?? "未知问题"</span>
+                                        <span class="mx-2 text-muted">-</span>
+                                        <span>@condition.ConditionType</span>
+                                        <span class="mx-2 text-muted">-</span>
+                                        <span>@(System.Text.Json.JsonSerializer.Deserialize<dynamic[]>(condition.TextResponse)?.FirstOrDefault()?.ToString() ?? "空")</span>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                }
+            </div>
+            
+            <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
+                @Html.AntiForgeryToken()
+                
+                <div class="d-flex gap-3">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> 确认删除
+                    </button>
+                    <a asp-action="Index" asp-route-questionnaireId="@Model.QuestionnaireId" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> 取消
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

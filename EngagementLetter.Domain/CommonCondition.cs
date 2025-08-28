@@ -1,5 +1,6 @@
 using EngagementLetter.Models.Base;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 
 namespace EngagementLetter.Models
 {
@@ -25,9 +26,10 @@ namespace EngagementLetter.Models
         [StringLength(50)]
         public string ConditionType 
         { 
-            get => GetOperatorText(ConditionType); 
-            set => SetOperator(value); 
+            get => GetOperatorText(_conditionType); 
+            set => _conditionType = SetOperator(value); 
         }
+        private string _conditionType;
 
         /// <summary>
         /// 条件逻辑关系（AND、OR）
@@ -35,9 +37,10 @@ namespace EngagementLetter.Models
         [StringLength(10)]
         public string LogicOperator 
         { 
-            get => GetLogicOperatorText(LogicOperator); 
-            set => SetLogicOperator(value); 
+            get => GetLogicOperatorText(_logicOperator); 
+            set => _logicOperator = SetLogicOperator(value); 
         }
+        private string _logicOperator;
 
         public CommonCondition()
         {
@@ -60,7 +63,7 @@ namespace EngagementLetter.Models
                 "GreaterThan" => "大于",
                 "LessThan" => "小于",
                 "NotEquals" => "不等于",
-                _ => conditionType
+                _ => throw new ArgumentException(message:"Invalid Condition Type.")
             };
         }
 
@@ -100,7 +103,7 @@ namespace EngagementLetter.Models
             {
                 "AND" => "且",
                 "OR" => "或",
-                _ => logicOperator
+                _ => throw new ArgumentException(message:"Invalid Logic Operator.")
             };
         }
 

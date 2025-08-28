@@ -1,0 +1,474 @@
+@{    
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>条件设置</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/font-awesome/css/all.min.css" />
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 0;
+            margin: 0;
+        }
+        .container-fluid {
+            padding: 15px;
+        }
+        .condition-item {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #fff;
+        }
+        .condition-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .logic-operator {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div id="conditionsList">
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-info-circle fa-2x mb-2"></i>
+                <p>请等待问卷数据加载...</p>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <button type="button" class="btn btn-outline-primary" onclick="addCondition()">
+                <i class="fas fa-plus me-1"></i>添加条件
+            </button>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let conditions = [];
+        let questions = [];
+        let currentQuestionnaireId = null;
+
+        // 与父页面通信
+        $(document).ready(function() {
+            // 通知父页面iframe已加载完成
+            window.parent.postMessage({
+                type: 'conditionsFrameLoaded'
+            }, '*');
+
+            // 监听来自父页面的消息
+            window.addEventListener('message', function(event) {
+                //console.log(event.data.type , event.data);
+                if (event.data.type === 'conditionsFrameLoaded') {
+                    conditionsFrameLoaded = true;
+                    const questionnaireId = event.data.questionnaireId;
+                    if (questionnaireId) {
+                        $('#conditionsContainer').show();
+                        $('#noQuestionnaireWarning').hide();
+                        const frame = document.getElementById('conditionsFrame');
+                        frame.contentWindow.postMessage({
+                            type: 'setQuestionnaireId',
+                            questionnaireId: questionnaireId,
+                            conditions: conditionsData
+                        }, '*');
+                    } else {
+                        $('#conditionsContainer').hide();
+                        $('#noQuestionnaireWarning').show();
+                    }
+                } else if (event.data.type === 'setQuestionnaireId') {
+                    currentQuestionnaireId = event.data.questionnaireId;
+                    conditions = event.data.conditions || [];
+                    loadQuestions();
+                } else if (event.data.type === 'initializeConditions') {
+                    currentQuestionnaireId = event.data.questionnaireId;
+                    conditions = event.data.conditions || [];
+                    console.log('初始化条件:', conditions);
+
+                    loadQuestions();
+                } else if (event.data.type === 'conditionsData') {
+                    conditionsData = event.data.conditions;
+                    $('#conditionsJson').val(JSON.stringify(conditionsData));
+                }
+            });
+        });
+
+        function loadQuestions() {
+            if (!currentQuestionnaireId) return;
+            console.log('当前问卷ID:', currentQuestionnaireId);
+            $.getJSON(`/Questionnaires/GetQuestions/${currentQuestionnaireId}`)
+                .done(function(data) {
+                    console.log('获取到的问题数据:', data);
+                    console.log('数据类型:', typeof data);
+                    console.log('数据长度:', data ? data.length : 0);
+                    console.log('数据示例:', data && data.length > 0 ? data[0] : '无数据');
+                    
+                    questions = data;
+                    renderConditions();
+                })
+                .fail(function(xhr, status, error) {
+                    console.error('加载问题数据失败:', status, error);
+                    $('#conditionsList').html(`
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> 加载问题数据失败，请刷新页面重试。
+                            <br>错误: ${error}
+                        </div>
+                    `);
+                });
+        }
+
+        function renderConditions() {
+            if (questions.length === 0) {
+                $('#conditionsList').html(`
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 当前问卷没有可用的问题。
+                    </div>
+                `);
+                return;
+            }
+
+            let html = '';
+            console.log('conditions:', conditions);
+            
+            if (conditions.length === 0) {
+                html = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-lightbulb fa-2x mb-2"></i>
+                        <p>点击"添加条件"按钮开始设置条件</p>
+                    </div>
+                `;
+            }else{
+                conditions
+                    .sort((a, b) => a.orderIndex - b.orderIndex)
+                    .forEach((condition, index) => {
+                        html += createConditionHtml(index, condition);
+                    });
+            }
+
+            $('#conditionsList').html(html);
+        }
+
+        function createConditionHtml(index, condition = {}) {
+            const questionOptions = questions.map(q => 
+                `<option value="${q.id}" ${(condition.questionId || condition.QuestionId) === q.id ? 'selected' : ''}>${q.content}</option>`
+            ).join('');
+
+            const conditionTypeOptions = [
+                { value: 'Equals', text: '等于' },
+                { value: 'Contains', text: '包含' },
+                { value: 'GreaterThan', text: '大于' },
+                { value: 'LessThan', text: '小于' },
+                { value: 'NotEquals', text: '不等于' }
+            ].map(opt => 
+                `<option value="${opt.value}" ${(condition.conditionType || condition.ConditionType) === opt.value ? 'selected' : ''}>${opt.text}</option>`
+            ).join('');
+
+            // 获取当前问题
+            const question = questions.find(q => (q.id === condition.questionId || q.id === condition.QuestionId));
+            
+            // 渲染预期答案部分
+            //console.log("渲染预期答案部分-question:"+JSON.stringify(question));
+            console.log("渲染预期条件部分-condition:"+JSON.stringify(condition));
+            const expectedAnswerHtml = question ? renderExpectedAnswer(index, question, condition.textResponse || condition.TextResponse) : 
+
+                `<input type="text" class="form-control" 
+                       value="${condition.textResponse || condition.TextResponse || ''}" 
+                       placeholder="输入预期答案"
+                       onchange="updateCondition(${index})">`;
+
+            return `
+                <div class="condition-item" data-index="${index}">
+                    <div class="condition-header">
+                        <span class="fw-bold">条件 ${index + 1}</span>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCondition(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">选择问题</label>
+                            <select class="form-select question-select" onchange="updateCondition(${index})">
+                                <option value="">-- 选择问题 --</option>
+                                ${questionOptions}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">条件类型</label>
+                            <select class="form-select condition-type-select" onchange="updateCondition(${index})">
+                                ${conditionTypeOptions}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <label class="form-label">预期答案</label>
+                            ${expectedAnswerHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderExpectedAnswer(index, question, expectedAnswer = '') {
+            let html = '';
+            console.log("question.type:"+question.type);
+            //switch (question.Type) {
+            switch (question.type) {
+                case 0: // 单选
+                    html = renderRadioOptions(index, question, expectedAnswer);
+                    break;
+                case 1: // 多选
+                    html = renderCheckboxOptions(index, question, expectedAnswer);
+                    break;
+                case 2: // 文本
+                    html = `
+                        <textarea class="form-control" rows="3" 
+                                  onchange="updateTextValue(${index}, this.value)" 
+                                  placeholder="请输入预期答案">${JSON.parse(expectedAnswer || '[]')[0]}</textarea>
+
+                    `;
+                    break;
+                default:
+                    html = `
+                        <input type="text" class="form-control" 
+                               value="${expectedAnswer || ''}" 
+                               placeholder="输入预期答案"
+                               onchange="updateCondition(${index})">
+                    `;
+            }
+            
+            return html;
+        }
+
+        function renderRadioOptions(index, question, expectedAnswer = '') {
+            try {
+                const options = JSON.parse(question.OptionsJson || question.optionsJson || '[]');
+                let selectedValue = '';
+                
+                try {
+                    eA = JSON.parse(expectedAnswer || '[]');
+                    selectedValue = eA[0];
+                } catch (e) {
+                    console.warn('解析预期答案失败:', e);
+                }
+                
+                let html = '<div class="form-check-group">';
+                
+                options.forEach((option, i) => {
+                    const optionText = typeof option === 'string' ? option : option.text || option.value || '';
+                    const optionValue = typeof option === 'string' ? option : option.value || optionText;
+                    const isChecked = selectedValue === optionValue;
+                    
+                    html += `
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" 
+                                   name="radio_${index}_${question.id}" 
+                                   id="radio_${index}_${question.id}_${i}" 
+                                   value="${optionValue}" 
+                                   ${isChecked ? 'checked' : ''} 
+                                   onchange="updateRadioValue(${index})">
+                            <label class="form-check-label" for="radio_${index}_${question.id}_${i}">
+                                ${optionText}
+                            </label>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                return html;
+            } catch (e) {
+                console.error('渲染单选选项失败:', e);
+                return `
+                    <input type="text" class="form-control" 
+                           value="${expectedAnswer || ''}" 
+                           placeholder="输入预期答案"
+                           onchange="updateCondition(${index})">
+                `;
+            }
+        }
+
+        function updateRadioValue(index) {
+            const radio = $(`.condition-item[data-index="${index}"] input[type="radio"]:checked`);
+            const value = radio.length ? radio.val() : '';
+            const jsonString = JSON.stringify([value]);
+            
+            const condition = conditions[index];
+            if (condition) {
+                condition.textResponse = jsonString;
+                notifyParentDataChanged();
+            }
+        }
+
+        function renderCheckboxOptions(index, question, expectedAnswer = '') {
+            try {
+                const options = JSON.parse(question.OptionsJson || question.optionsJson || '[]');
+                //console.log("renderCheckboxOptions:"+options);
+                let selectedValues = [];
+                
+                try {
+                    selectedValues = expectedAnswer ? JSON.parse(expectedAnswer) : [];
+                } catch (e) {
+                    console.warn('解析预期答案失败:', e);
+                }
+                
+                let html = '<div class="form-check-group">';
+                
+                options.forEach((option, i) => {
+                    const optionText = typeof option === 'string' ? option : option.text || option.value || '';
+                    const optionValue = typeof option === 'string' ? option : option.value || optionText;
+                    const isChecked = selectedValues.includes(optionValue);
+                    
+                    html += `
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" 
+                                   id="checkbox_${index}_${i}" 
+                                   value="${optionValue}" 
+                                   ${isChecked ? 'checked' : ''} 
+                                   onchange="updateCheckboxValues(${index})">
+                            <label class="form-check-label" for="checkbox_${index}_${i}">
+                                ${optionText}
+                            </label>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                return html;
+            } catch (e) {
+                console.error('渲染多选选项失败:', e);
+                return `
+                    <input type="text" class="form-control" 
+                           value="${expectedAnswer || ''}" 
+                           placeholder="输入预期答案"
+                           onchange="updateCondition(${index})">
+                `;
+            }
+        }
+
+        function updateCheckboxValues(index) {
+            const checkboxes = $(`.condition-item[data-index="${index}"] input[type="checkbox"]:checked`);
+            const values = Array.from(checkboxes).map(cb => cb.value);
+            const jsonString = JSON.stringify(values);
+            
+            const condition = conditions[index];
+            if (condition) {
+                condition.textResponse = jsonString;
+                notifyParentDataChanged();
+            }
+        }
+
+        function updateTextValue(index, value) {
+            const condition = conditions[index];
+            const jsonString = JSON.stringify([value]);
+            if (condition) {
+                condition.textResponse = jsonString;
+                notifyParentDataChanged();
+            }
+        }
+
+        function addCondition() {
+            conditions.push({
+                questionnaireId: currentQuestionnaireId,
+                questionId: '',
+                textResponse: '',
+                conditionType: 'Equals', // 默认条件类型为等于
+                logicOperator: 'AND', // 默认逻辑关系为AND
+                orderIndex: conditions.length
+            });
+            renderConditions();
+            notifyParentDataChanged();
+        }
+
+        function removeCondition(index) {
+            conditions.splice(index, 1);
+            // 重新排序
+            conditions.forEach((c, i) => c.orderIndex = i);
+            renderConditions();
+            notifyParentDataChanged();
+        }
+
+        function updateCondition(index) {
+            const conditionItem = $(`.condition-item[data-index="${index}"]`);
+            const questionSelect = conditionItem.find('.question-select');
+            const conditionTypeSelect = conditionItem.find('.condition-type-select');
+            
+            // 获取当前问题
+            const questionId = questionSelect.val();
+            //const question = questions.find(q => q.Id === questionId);
+            const question = questions.find(q => q.id === questionId);
+            
+            // 获取预期答案
+            let expectedAnswer = '';
+            if (question) {
+                switch (question.Type) {
+                    case 0: // 单选
+                        const radio = conditionItem.find(`input[type="radio"]:checked`);
+                        expectedAnswer = radio.length ? radio.val() : '';
+                        break;
+                    case 1: // 多选
+                        const checkboxes = conditionItem.find(`input[type="checkbox"]:checked`);
+                        const values = Array.from(checkboxes).map(cb => cb.value);
+                        expectedAnswer = JSON.stringify(values);
+                        break;
+                    case 2: // 文本
+                        expectedAnswer = conditionItem.find('textarea').val() || '';
+                        break;
+                    default:
+                        expectedAnswer = conditionItem.find('input[type="text"]').val() || '';
+                }
+            } else {
+                expectedAnswer = conditionItem.find('input[type="text"]').val() || '';
+            }
+            
+            conditions[index] = {
+                questionId: questionId,
+                textResponse: expectedAnswer,
+                conditionType: conditionTypeSelect.val(),
+                logicOperator: 'AND', // 固定为AND
+                orderIndex: index
+            };
+            
+            // 重新渲染条件以更新预期答案部分
+            renderConditions();
+            notifyParentDataChanged();
+        }
+
+        function getAllConditions() {
+            return conditions.filter(c => c.questionId); // 过滤掉未选择问题的条件
+        }
+
+        function notifyParentDataChanged() {
+            window.parent.postMessage({
+                type: 'conditionsData',
+                conditions: getAllConditions()
+            }, '*');
+        }
+
+        // 暴露给全局的函数
+        window.getAllConditions = getAllConditions;
+        window.initializeConditions = function(initialConditions, questionnaireId) {
+            conditions = initialConditions || [];
+            currentQuestionnaireId = questionnaireId;
+            loadQuestions();
+        };
+    </script>
+</body>
+</html>
