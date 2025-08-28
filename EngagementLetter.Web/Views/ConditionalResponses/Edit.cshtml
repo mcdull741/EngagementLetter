@@ -54,36 +54,62 @@
         <input type="hidden" asp-for="Id" />
         <div class="row">
             <div class="col-md-8">
+                <!-- 关联问卷 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">关联问卷 <span class="text-danger">*</span></h5>
+                    </div>
+                    <div class="card-body">
+                        @{
+                            var questionnaireId = ViewBag.QuestionnaireId as string;
+                            var hasQuestionnaireId = !string.IsNullOrEmpty(questionnaireId);
+                            var questionnaireTitle = ViewBag.QuestionnaireTitle as string;
+                        }
+                        @if (hasQuestionnaireId)
+                        {
+                            <input type="hidden" asp-for="QuestionnaireId" value="@questionnaireId" />
+                            <input type="text" class="form-control" value="@questionnaireTitle" readonly />
+                        }
+                        else
+                        {
+                            <select asp-for="QuestionnaireId" class="form-select" asp-items="ViewBag.Questionnaires">
+                                <option value="">-- 请选择问卷 --</option>
+                            </select>
+                        }
+                        <span asp-validation-for="QuestionnaireId" class="text-danger field-validation-valid"></span>
+                    </div>
+                </div>
+
+                <!-- 条件设置 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">条件设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="conditionsContainer">
+                            <iframe id="conditionsFrame" 
+                                    src="/ConditionalResponses/_ConditionsFrame" 
+                                    width="100%" 
+                                    height="300" 
+                                    frameborder="0"
+                                    style="min-height: 300px;"></iframe>
+                        </div>
+                        <input type="hidden" id="conditionsJson" name="conditionsJson" />
+                        <div id="noQuestionnaireWarning" class="alert alert-warning" style="display: none;">
+                            <i class="fas fa-exclamation-triangle"></i> 请先选择关联问卷，然后才能设置条件。
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 关联问题和绑定的回答 -->
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="card-title mb-0">条件响应信息</h5>
+                        <h5 class="card-title mb-0">响应问题与回答 <span class="text-danger">*</span></h5>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label asp-for="QuestionnaireId" class="form-label">关联问卷 <span class="text-danger">*</span></label>
-                            @{
-                                var questionnaireId = ViewBag.QuestionnaireId as string;
-                                var hasQuestionnaireId = !string.IsNullOrEmpty(questionnaireId);
-                                var questionnaireTitle = ViewBag.QuestionnaireTitle as string;
-                            }
-                            @if (hasQuestionnaireId)
-                            {
-                                <input type="hidden" asp-for="QuestionnaireId" value="@questionnaireId" />
-                                <input type="text" class="form-control" value="@questionnaireTitle" readonly />
-                            }
-                            else
-                            {
-                                <select asp-for="QuestionnaireId" class="form-select" asp-items="ViewBag.Questionnaires">
-                                    <option value="">-- 请选择问卷 --</option>
-                                </select>
-                            }
-                            <span asp-validation-for="QuestionnaireId" class="text-danger field-validation-valid"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="QuestionId" class="form-label">关联问题 <span class="text-danger">*</span></label>
-                            @{
-                                var questions = ViewBag.Questions as IEnumerable<dynamic>;
+                            <label asp-for="QuestionId" class="form-label">响应问题 <span class="text-danger">*</span></label>
+                            @{                                var questions = ViewBag.Questions as IEnumerable<dynamic>;
                             }
                             @if (questions != null && questions.Any())
                             {
@@ -102,33 +128,13 @@
                             <span asp-validation-for="QuestionId" class="text-danger field-validation-valid"></span>
                         </div>
 
-                        <div class="mb-3">
-                            <label asp-for="Response" class="form-label">绑定的回答 <span class="text-danger">*</span></label>
+                        <div>
+                            <label asp-for="Response" class="form-label">响应回答 <span class="text-danger">*</span></label>
                             <div id="responseContainer">
                                 <!-- 回答区域将通过JavaScript动态生成 -->
                             </div>
-                            <div class="form-text">当条件满足时，将自动填写此回答</div>
+                            <div class="form-text">当满足[条件设置]时，将自动填写此回答</div>
                             <span asp-validation-for="Response" class="text-danger field-validation-valid"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card mt-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">条件设置</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="conditionsContainer">
-                            <iframe id="conditionsFrame" 
-                                    src="/ConditionalResponses/_ConditionsFrame" 
-                                    width="100%" 
-                                    height="600" 
-                                    frameborder="0"
-                                    style="min-height: 600px;"></iframe>
-                        </div>
-                        <input type="hidden" id="conditionsJson" name="conditionsJson" />
-                        <div id="noQuestionnaireWarning" class="alert alert-warning" style="display: none;">
-                            <i class="fas fa-exclamation-triangle"></i> 请先选择关联问卷，然后才能设置条件。
                         </div>
                     </div>
                 </div>
