@@ -248,5 +248,201 @@
         document.getElementById('engLetterTitle').addEventListener('input', function() {
             document.title = '创建: ' + this.value;
         });
+        // 添加消息事件监听器，用于接收iframe中的选择变化和高度调整
+        window.addEventListener('message', function(event) {
+            // 验证消息来源，确保安全性
+            if (event.origin !== window.location.origin && event.origin !== '*') return;
+            
+            if (event.data && event.data.type === 'optionChanged') {
+                // 用户修改了选项，检查条件响应
+                checkConditionalResponses();
+            } else if (event.data && event.data.type === 'resizeHeight') {
+                // 调整iframe高度
+                const iframe = document.querySelector('.questionnaire-iframe');
+                if (iframe) {
+                    iframe.style.height = event.data.height + 'px';
+                }
+            }
+        });
     });
+
+    // 检查条件响应
+    async function checkConditionalResponses() {
+        const questionnaireId = document.getElementById('questionnaireId').value;
+        if (!questionnaireId) return;
+        
+        try {
+            // 获取当前问卷的所有条件响应
+            const response = await fetch(`/ConditionalResponses/GetConditionalResponses?questionnaireId=${questionnaireId}`);
+            const conditionalResponses = await response.json();
+            console.log('获取到的条件响应:', conditionalResponses);
+            if (!conditionalResponses || conditionalResponses.length === 0) return;
+            
+            // 获取iframe中的当前答案
+            const iframe = document.querySelector('.questionnaire-iframe');
+            if (!iframe || !iframe.contentDocument) return;
+            
+            const currentAnswers = collectCurrentAnswers(iframe.contentDocument);
+            //console.log('获取到的当前答案:', currentAnswers);
+            
+            // 检查每个条件响应
+            for (const conditionResponse of conditionalResponses) {
+                const conditionResponseConditions = conditionResponse.Conditions || conditionResponse.conditions;
+                if (checkConditions(conditionResponseConditions, currentAnswers)) {
+                    // 满足条件，应用响应
+                    applyConditionalResponse(iframe.contentDocument, conditionResponse);
+                } else {
+                    // 不满足条件，确保问题是启用的
+                    enableQuestion(iframe.contentDocument, conditionResponse.questionId);
+                }
+            }
+        } catch (error) {
+            console.error('检查条件响应失败:', error);
+        }
+    }
+    
+    // 收集当前答案
+    function collectCurrentAnswers(document) {
+        const answers = {};
+        
+        // 收集单选答案
+        const radioInputs = document.querySelectorAll('input[type="radio"]:checked');
+        radioInputs.forEach(input => {
+            const questionId = input.name.replace('question_', '');
+            answers[questionId] = [input.value];
+        });
+        
+        // 收集多选答案
+        const questionNames = new Set();
+        const checkboxInputs = document.querySelectorAll('input[type="checkbox"]');
+        checkboxInputs.forEach(input => {
+            const questionId = input.name.replace('question_', '');
+            questionNames.add(questionId);
+        });
+        
+        questionNames.forEach(questionId => {
+            if (!answers[questionId]) {
+                const checkedBoxes = document.querySelectorAll(`input[name="question_${questionId}"][type="checkbox"]:checked`);
+                answers[questionId] = Array.from(checkedBoxes).map(box => box.value);
+            }
+        });
+        
+        // 收集文本答案
+        const textareas = document.querySelectorAll('textarea');
+        textareas.forEach(textarea => {
+            const questionId = textarea.name.replace('question_', '');
+            if (textarea.value.trim()) {
+                answers[questionId] = [textarea.value.trim()];
+            }
+        });
+        
+        return answers;
+    }
+    
+    // 检查条件是否满足
+    function checkConditions(conditions, currentAnswers) {
+        if (!conditions || conditions.length === 0) return false;
+        
+        // 处理第一个条件
+        let result = checkSingleCondition(conditions[0], currentAnswers);
+        
+        // 处理剩余条件
+        for (let i = 1; i < conditions.length; i++) {
+            const conditionMet = checkSingleCondition(conditions[i], currentAnswers);
+            
+            // 根据逻辑运算符组合结果
+            if (conditions[i].LogicOperator === 'AND') {
+                result = result && conditionMet;
+            } else if (conditions[i].LogicOperator === 'OR') {
+                result = result || conditionMet;
+            }
+        }
+        
+        return result;
+    }
+    
+    // 检查单个条件
+    function checkSingleCondition(condition, currentAnswers) {
+        const { questionId, conditionType, textResponse } = condition;
+        
+        // 如果当前问题没有答案，条件不满足
+        console.log('当前问题ID:', questionId);
+        console.log('当前问题答案:', currentAnswers[questionId]);
+        if (!currentAnswers[questionId] || currentAnswers[questionId].length === 0) {
+            return false;
+        }
+        
+        try {
+            // 解析条件答案
+            const conditionAnswers = JSON.parse(textResponse);
+            
+            // 根据条件类型检查
+            switch (conditionType) {
+                case 'Equals':
+                    return conditionAnswers.some(answer => 
+                        currentAnswers[questionId].includes(answer)
+                    );
+                case 'Contains':
+                    return currentAnswers[questionId].some(answer => 
+                        conditionAnswers.some(conditionAnswer => 
+                            answer.includes(conditionAnswer)
+                        )
+                    );
+                case 'NotEquals':
+                    return !conditionAnswers.some(answer => 
+                        currentAnswers[questionId].includes(answer)
+                    );
+                default:
+                    return false;
+            }
+        } catch (error) {
+            console.error('解析条件答案失败:', error);
+            return false;
+        }
+    }
+    
+    // 应用条件响应
+    function applyConditionalResponse(document, conditionResponse) {
+        const { questionId, response } = conditionResponse;
+        
+        try {
+            const responseAnswers = JSON.parse(response);
+            
+            // 查找对应问题的输入元素
+            const questionInputs = document.querySelectorAll(`input[name="question_${questionId}"], textarea[name="question_${questionId}"]`);
+            
+            if (questionInputs.length === 0) return;
+            
+            const inputType = questionInputs[0].type;
+            
+            // 根据输入类型设置答案
+            if (inputType === 'radio') {
+                // 单选按钮
+                questionInputs.forEach(input => {
+                    input.checked = responseAnswers.includes(input.value);
+                    input.disabled = true;
+                });
+            } else if (inputType === 'checkbox') {
+                // 复选框
+                questionInputs.forEach(input => {
+                    input.checked = responseAnswers.includes(input.value);
+                    input.disabled = true;
+                });
+            } else if (questionInputs[0].tagName === 'TEXTAREA') {
+                // 文本区域
+                questionInputs[0].value = responseAnswers[0] || '';
+                questionInputs[0].disabled = true;
+            }
+        } catch (error) {
+            console.error('应用条件响应失败:', error);
+        }
+    }
+    
+    // 启用问题
+    function enableQuestion(document, questionId) {
+        const questionInputs = document.querySelectorAll(`input[name="question_${questionId}"], textarea[name="question_${questionId}"]`);
+        questionInputs.forEach(input => {
+            input.disabled = false;
+        });
+    }
 </script>

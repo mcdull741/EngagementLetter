@@ -515,5 +515,39 @@ namespace EngagementLetter.Web.Controllers
             // 重定向回列表页面
             return RedirectToAction(nameof(Index), new { questionnaireId });
         }
+
+        // Get: ConditionalResponses/GetConditionalResponses
+        [HttpGet]
+        public async Task<IActionResult> GetConditionalResponses(string questionnaireId)
+        {
+            try
+            {
+                var conditionalResponses = await _context.ConditionalResponses
+                    .Where(cr => cr.QuestionnaireId == questionnaireId)
+                    .Include(cr => cr.Conditions)
+                    .Select(cr => new
+                    {
+                        cr.Id,
+                        cr.QuestionnaireId,
+                        cr.QuestionId,
+                        cr.Response,
+                        Conditions = cr.Conditions.Select(c => new
+                        {
+                            c.Id,
+                            c.QuestionId,
+                            c.ConditionType,
+                            c.TextResponse,
+                            c.LogicOperator
+                        }).ToList()
+                    })
+                    .ToListAsync();
+                
+                return Json(conditionalResponses);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
     }
 }

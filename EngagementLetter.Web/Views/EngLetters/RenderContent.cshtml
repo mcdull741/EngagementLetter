@@ -149,6 +149,21 @@
     </div>
 
 <script>
+    // 为所有输入元素添加事件监听器，当用户更改选项时通知父窗口
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputs = document.querySelectorAll('input[type="radio"], input[type="checkbox"], textarea');
+        
+        inputs.forEach(input => {
+            input.addEventListener('change', function() {
+                // 向父窗口发送消息，通知选项已更改
+                window.parent.postMessage({ type: 'optionChanged' }, window.location.origin);
+            });
+        });
+        
+        // 初始加载完成后，也通知父窗口检查条件响应
+        window.parent.postMessage({ type: 'optionChanged' }, window.location.origin);
+    });
+
     // 调整iframe高度的函数
     function adjustHeight() {
         var height = document.body.scrollHeight;

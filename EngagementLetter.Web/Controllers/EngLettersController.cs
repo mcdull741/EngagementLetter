@@ -38,7 +38,7 @@ namespace EngagementLetter.Web.Controllers
             return View(engagementLetters);
         }
 
-        // POST: EngLetters/Create
+        // Post: EngLetters/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([FromForm] string title, [FromForm] string questionnaireId, IFormCollection formData)
@@ -128,7 +128,19 @@ namespace EngagementLetter.Web.Controllers
                 .OrderBy(q => q.Title)
                 .FirstOrDefaultAsync();
             
+            if(publishedQuestionnaire == null)
+            {
+                return NotFound();
+            }
+
             ViewBag.Questionnaire = publishedQuestionnaire;
+            
+            // 加载条件内容
+            var conditionalResponses = await _context.ConditionalResponses
+                .Where(c => c.QuestionnaireId == publishedQuestionnaire.Id)
+                .ToListAsync();
+            ViewBag.ConditionalResponses = conditionalResponses;
+
             return View();
         }
 
@@ -172,6 +184,13 @@ namespace EngagementLetter.Web.Controllers
             {
                 return NotFound();
             }
+
+            // 加载条件内容
+            var conditionalResponses = await _context.ConditionalResponses
+                .Where(c => c.QuestionnaireId == engLetter.QuestionnaireId)
+                .ToListAsync();
+            ViewBag.ConditionalResponses = conditionalResponses;
+
             ViewBag.IsEditMode = true;
             return View(engLetter);
         }
